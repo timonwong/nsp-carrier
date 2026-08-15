@@ -179,25 +179,26 @@ type sectionReadCloser struct {
 
 func (r *sectionReadCloser) Close() error { return r.file.Close() }
 
-func (c *Catalog) OpenRange(name string, offset uint64, size uint32) (io.ReadCloser, error) {
+func (c *Catalog) OpenRange(name string, offset uint64, size uint32) (io.ReadCloser, uint32, error) {
 	entry, ok := c.byName[name]
 	if !ok {
-		return nil, ErrFileNotFound
+		return nil, 0, ErrFileNotFound
 	}
 	info, err := os.Stat(entry.Path)
 	if err != nil || !os.SameFile(entry.info, info) || info.Size() != entry.Size || !info.ModTime().Equal(entry.ModTime) {
-		return nil, ErrSourceChanged
+		return nil, 0, ErrSourceChanged
 	}
-	if entry.Size < 0 || offset > uint64(entry.Size) || uint64(size) > uint64(entry.Size)-offset {
-		return nil, ErrRangeOutOfBounds
+	if entry.Size < 0 || offset > uint64(entry.Size) {
+		return nil, 0, ErrRangeOutOfBounds
 	}
+	available := min(uint64(size), uint64(entry.Size)-offset)
 
 	file, err := os.Open(entry.Path)
 	if err != nil {
-		return nil, ErrSourceChanged
+		return nil, 0, ErrSourceChanged
 	}
 	return &sectionReadCloser{
-		SectionReader: io.NewSectionReader(file, int64(offset), int64(size)),
+		SectionReader: io.NewSectionReader(file, int64(offset), int64(available)),
 		file:          file,
-	}, nil
+	}, uint32(available), nil
 }

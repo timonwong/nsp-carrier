@@ -55,9 +55,12 @@ func TestCatalogOpenRangeReadsFrozenSource(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	reader, err := catalog.OpenRange("game.nsp", 3, 4)
+	reader, available, err := catalog.OpenRange("game.nsp", 3, 4)
 	if err != nil {
 		t.Fatalf("OpenRange() error = %v", err)
+	}
+	if available != 4 {
+		t.Fatalf("OpenRange() available = %d, want 4", available)
 	}
 	defer reader.Close()
 	got, err := io.ReadAll(reader)
@@ -69,7 +72,7 @@ func TestCatalogOpenRangeReadsFrozenSource(t *testing.T) {
 	}
 }
 
-func TestCatalogOpenRangeRejectsChangedOrOutOfBoundsSource(t *testing.T) {
+func TestCatalogOpenRangeClampsAtEOFAndRejectsChangedOrPastEOFSource(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "game.nsp")
 	if err := os.WriteFile(path, []byte("0123456789"), 0o644); err != nil {
 		t.Fatal(err)
@@ -79,13 +82,21 @@ func TestCatalogOpenRangeRejectsChangedOrOutOfBoundsSource(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := catalog.OpenRange("game.nsp", 9, 2); !errors.Is(err, files.ErrRangeOutOfBounds) {
+	reader, available, err := catalog.OpenRange("game.nsp", 9, 2)
+	if err != nil {
+		t.Fatalf("tail OpenRange() error = %v", err)
+	}
+	reader.Close()
+	if available != 1 {
+		t.Fatalf("tail OpenRange() available = %d, want 1", available)
+	}
+	if _, _, err := catalog.OpenRange("game.nsp", 11, 1); !errors.Is(err, files.ErrRangeOutOfBounds) {
 		t.Fatalf("out-of-bounds OpenRange() error = %v", err)
 	}
 	if err := os.WriteFile(path, []byte("changed"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := catalog.OpenRange("game.nsp", 0, 1); !errors.Is(err, files.ErrSourceChanged) {
+	if _, _, err := catalog.OpenRange("game.nsp", 0, 1); !errors.Is(err, files.ErrSourceChanged) {
 		t.Fatalf("changed-source OpenRange() error = %v", err)
 	}
 }
@@ -113,9 +124,12 @@ func TestCatalogOpenRangeSupportsOffsetsBeyondFourGiB(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	reader, err := catalog.OpenRange("large.xci", uint64(offset), 4)
+	reader, available, err := catalog.OpenRange("large.xci", uint64(offset), 4)
 	if err != nil {
 		t.Fatalf("OpenRange() error = %v", err)
+	}
+	if available != 4 {
+		t.Fatalf("OpenRange() available = %d, want 4", available)
 	}
 	defer reader.Close()
 	got, err := io.ReadAll(reader)

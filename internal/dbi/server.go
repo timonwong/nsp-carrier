@@ -83,9 +83,9 @@ func (s *Server) serveRange(ctx context.Context, link transport.Duplex, payloadS
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrProtocol, err)
 	}
-	reader, err := s.catalog.OpenRange(request.Name, request.Offset, request.Size)
+	reader, availableSize, err := s.catalog.OpenRange(request.Name, request.Offset, request.Size)
 	if err != nil {
-		return err
+		return fmt.Errorf("open range %q offset=%d size=%d: %w", request.Name, request.Offset, request.Size, err)
 	}
 	defer reader.Close()
 
@@ -106,8 +106,8 @@ func (s *Server) serveRange(ctx context.Context, link transport.Duplex, payloadS
 
 	progress := s.progress[request.Name]
 	const chunkSize = 1 << 20
-	buffer := make([]byte, min(uint64(request.Size), chunkSize))
-	remaining := uint64(request.Size)
+	buffer := make([]byte, min(uint64(availableSize), chunkSize))
+	remaining := uint64(availableSize)
 	offset := request.Offset
 	for remaining > 0 {
 		current := min(remaining, uint64(len(buffer)))

@@ -73,6 +73,10 @@ but is not proof of Switch-side installation success.
 - Cap basename at 4 KiB; require valid UTF-8 and reject NUL, `/`, `\\`, `.`,
   and `..`.
 - Require declared basename length to equal the remaining payload.
-- Reject integer overflow and ranges beyond the frozen source size.
+- Reject integer overflow and offsets beyond the frozen source size.
+- DBI was observed requesting a final 1 MiB-aligned range that started within
+  the file and crossed EOF. Preserve the requested size in the response header
+  but send only the available tail bytes, matching the original Python backend.
+  Never zero-pad the source.
 - Reject unsupported commands and malformed frames without panic or unbounded
   allocation.

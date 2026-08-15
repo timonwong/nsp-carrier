@@ -151,3 +151,58 @@ func TestServerServesFileRangeAndRecordsProgress(t *testing.T) {
 		t.Fatalf("Progress() = %#v, %v", progress, ok)
 	}
 }
+
+func TestServerServesAvailableTailWhenAlignedRangeCrossesEOF(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "game.nsp")
+	if err := os.WriteFile(path, []byte("0123456789"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := files.BuildCatalog([]string{path})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	detail := make([]byte, 16+len("game.nsp"))
+	binary.LittleEndian.PutUint32(detail[0:4], 4)
+	binary.LittleEndian.PutUint64(detail[4:12], 8)
+	binary.LittleEndian.PutUint32(detail[12:16], uint32(len("game.nsp")))
+	copy(detail[16:], "game.nsp")
+	request := dbi.EncodeHeader(dbi.Header{
+		Type:        dbi.CommandTypeRequest,
+		Command:     dbi.CommandFileRange,
+		PayloadSize: uint32(len(detail)),
+	})
+	finalAck := dbi.EncodeHeader(dbi.Header{
+		Type:    dbi.CommandTypeAcknowledgement,
+		Command: dbi.CommandFileRange,
+	})
+	exitRequest := dbi.EncodeHeader(dbi.Header{Type: dbi.CommandTypeRequest, Command: dbi.CommandExit})
+	input := append(append(append(request[:], detail...), finalAck[:]...), exitRequest[:]...)
+	link := transport.NewMemory(input)
+
+	server := dbi.NewServer(catalog)
+	if err := server.Serve(context.Background(), link); err != nil {
+		t.Fatalf("Serve() error = %v", err)
+	}
+
+	requestAck := dbi.EncodeHeader(dbi.Header{
+		Type:        dbi.CommandTypeAcknowledgement,
+		Command:     dbi.CommandFileRange,
+		PayloadSize: uint32(len(detail)),
+	})
+	response := dbi.EncodeHeader(dbi.Header{
+		Type:        dbi.CommandTypeResponse,
+		Command:     dbi.CommandFileRange,
+		PayloadSize: 4,
+	})
+	exitResponse := dbi.EncodeHeader(dbi.Header{Type: dbi.CommandTypeResponse, Command: dbi.CommandExit})
+	want := append(append(append(requestAck[:], response[:]...), []byte("89")...), exitResponse[:]...)
+	if !bytes.Equal(link.Written(), want) {
+		t.Fatalf("written bytes = %x, want %x", link.Written(), want)
+	}
+
+	progress, ok := server.Progress("game.nsp")
+	if !ok || progress.UniqueServedBytes != 2 || progress.WireBytes != 2 {
+		t.Fatalf("Progress() = %#v, %v", progress, ok)
+	}
+}

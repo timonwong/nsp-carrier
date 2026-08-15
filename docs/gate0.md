@@ -59,6 +59,16 @@ Record Pass/Fail, evidence, and observed errors for every item:
 | 11 | Handle DBI EXIT | Pending | |
 | 12 | Match the original Python backend on the same device | Pending | |
 
+### Live observations
+
+- 2026-08-15: the first full session served 3,818,919,936 unique bytes of a
+  3,819,575,808-byte XCI before the strict catalog rejected the final aligned
+  request as out of bounds. The remaining 655,872 bytes and a 1 MiB request
+  imply a 392,704-byte EOF overshoot. The original Python backend permits this
+  pattern by sending only the available tail bytes. A regression test now
+  covers that behavior without zero-padding; the hardware row remains Pending
+  until the fixed build completes the session.
+
 ## Decision
 
 - **Pass:** all rows pass; Wails UI work may begin.
