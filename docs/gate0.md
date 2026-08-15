@@ -46,8 +46,8 @@ Record Pass/Fail, evidence, and observed errors for every item:
 
 | # | Required behavior | Result | Evidence |
 | ---: | --- | --- | --- |
-| 1 | Detect `057e:3000` | Pending | |
-| 2 | Discover and claim exactly one usable bulk IN/OUT pair | Pending | |
+| 1 | Detect `057e:3000` | Pass | 2026-08-15: `gate0-probe` detected the device after direct replug on bus 1, address 5, at SuperSpeed. |
+| 2 | Discover and claim exactly one usable bulk IN/OUT pair | Pass | 2026-08-15: reset-on-connect and claim succeeded for configuration 1, interface 0, alternate 0, bulk IN 1 and OUT 1; probe closed cleanly. |
 | 3 | Complete LIST exchange | Pending | |
 | 4 | Complete metadata range | Pending | |
 | 5 | Complete non-sequential range requests | Pending | |
