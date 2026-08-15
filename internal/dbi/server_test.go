@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/timonwong/ya-dbibackend/internal/dbi"
-	"github.com/timonwong/ya-dbibackend/internal/files"
-	"github.com/timonwong/ya-dbibackend/internal/transport"
+	"github.com/timonwong/nsp-carrier/internal/dbi"
+	"github.com/timonwong/nsp-carrier/internal/files"
+	"github.com/timonwong/nsp-carrier/internal/transport"
 )
 
 func TestServerListsFrozenCatalogAndExitsAcrossShortIO(t *testing.T) {

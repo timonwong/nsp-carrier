@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/google/gousb"
-	"github.com/timonwong/ya-dbibackend/internal/transport"
+	"github.com/timonwong/nsp-carrier/internal/transport"
 )
 
 const (

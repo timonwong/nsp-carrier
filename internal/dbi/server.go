@@ -7,8 +7,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/timonwong/ya-dbibackend/internal/files"
-	"github.com/timonwong/ya-dbibackend/internal/transport"
+	"github.com/timonwong/nsp-carrier/internal/files"
+	"github.com/timonwong/nsp-carrier/internal/transport"
 )
 
 var (

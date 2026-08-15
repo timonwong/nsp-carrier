@@ -2,7 +2,7 @@
 
 ## Product boundary
 
-`ya-dbibackend` is a macOS-first, cross-platform-structured replacement for
+`nsp-carrier` is a macOS-first, cross-platform-structured replacement for
 the PC-side DBI backend. It exposes selected local files to DBI over the
 vendor-specific DBI0 bulk USB protocol.
 
@@ -99,8 +99,8 @@ requested by the end of a session become `NotRequested`, not `Failed`.
 After Gate 0 passes, the Wails v2 UI will provide file/folder addition, drag
 and drop, queue checkboxes, removal, clear, search, Start/Stop, connection and
 session state, unique-byte progress, structured logs, typed errors, and
-Light/Dark/Auto theme. The UI language is English. Bundle ID:
-`im.theo.ya-dbibackend`.
+Light/Dark/Auto theme. The UI language is English. The future application
+display name is `NSP Carrier` and its bundle ID is `im.theo.nsp-carrier`.
 
 Settings persist theme, window geometry, recent file/folder directories, and
 UI preferences. The queue and absolute paths are not restored implicitly.

@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/timonwong/ya-dbibackend/internal/dbi"
+	"github.com/timonwong/nsp-carrier/internal/dbi"
 )
 
 func TestHeaderRoundTripMatchesObservedWireFormat(t *testing.T) {

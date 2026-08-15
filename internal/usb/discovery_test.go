@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/google/gousb"
-	usbtransport "github.com/timonwong/ya-dbibackend/internal/usb"
+	usbtransport "github.com/timonwong/nsp-carrier/internal/usb"
 )
 
 func TestFindBulkPairDiscoversDescriptorCoordinates(t *testing.T) {

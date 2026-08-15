@@ -14,10 +14,10 @@ import (
 	"time"
 
 	"github.com/google/gousb"
-	"github.com/timonwong/ya-dbibackend/internal/app"
-	"github.com/timonwong/ya-dbibackend/internal/dbi"
-	"github.com/timonwong/ya-dbibackend/internal/files"
-	usbtransport "github.com/timonwong/ya-dbibackend/internal/usb"
+	"github.com/timonwong/nsp-carrier/internal/app"
+	"github.com/timonwong/nsp-carrier/internal/dbi"
+	"github.com/timonwong/nsp-carrier/internal/files"
+	usbtransport "github.com/timonwong/nsp-carrier/internal/usb"
 )
 
 const shutdownGracePeriod = 2 * time.Second

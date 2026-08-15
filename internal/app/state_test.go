@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/timonwong/ya-dbibackend/internal/app"
+	"github.com/timonwong/nsp-carrier/internal/app"
 )
 
 func TestStateMachineOwnsCanonicalSessionTransitions(t *testing.T) {

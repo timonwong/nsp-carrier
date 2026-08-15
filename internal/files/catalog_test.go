@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/timonwong/ya-dbibackend/internal/files"
+	"github.com/timonwong/nsp-carrier/internal/files"
 )
 
 func TestBuildCatalogRecursesFiltersAndSkipsSymlinks(t *testing.T) {

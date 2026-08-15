@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/timonwong/ya-dbibackend/internal/dbi"
+	"github.com/timonwong/nsp-carrier/internal/dbi"
 )
 
 func TestParseRangeRequestSupportsOffsetsBeyondFourGiB(t *testing.T) {

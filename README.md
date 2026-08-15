@@ -1,6 +1,6 @@
-# ya-dbibackend
+# nsp-carrier
 
-`ya-dbibackend` is a clean Go implementation of the PC-side DBI raw-USB
+`nsp-carrier` is a clean Go implementation of the PC-side DBI raw-USB
 file service, with a Wails v2 desktop UI planned after the USB feasibility
 gate passes on real hardware.
 

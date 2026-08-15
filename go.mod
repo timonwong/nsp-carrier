@@ -1,4 +1,4 @@
-module github.com/timonwong/ya-dbibackend
+module github.com/timonwong/nsp-carrier
 
 go 1.26
 

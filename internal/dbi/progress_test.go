@@ -3,7 +3,7 @@ package dbi_test
 import (
 	"testing"
 
-	"github.com/timonwong/ya-dbibackend/internal/dbi"
+	"github.com/timonwong/nsp-carrier/internal/dbi"
 )
 
 func TestProgressSeparatesUniqueRangesFromWireBytes(t *testing.T) {
