@@ -50,7 +50,7 @@ Record Pass/Fail, evidence, and observed errors for every item:
 | 2 | Discover and claim exactly one usable bulk IN/OUT pair | Pass | 2026-08-15: reset-on-connect and claim succeeded for configuration 1, interface 0, alternate 0, bulk IN 1 and OUT 1; probe closed cleanly. |
 | 3 | Complete LIST exchange | Pass | 2026-08-15: both XCI and NSP basenames appeared in DBI; the NSP session proceeded from the listed file to installation. |
 | 4 | Complete metadata range | Pass | 2026-08-15: DBI parsed the NSP metadata and completed signature verification and installation. |
-| 5 | Complete non-sequential range requests | Pending | |
+| 5 | Complete non-sequential range requests | Pass | 2026-08-15: a 34-file NSP batch completed with every file reporting non-sequential and backward range access. The 1.27 GB base NSP served 1,224 range requests, including 6 non-sequential and 1 backward request. |
 | 6 | Serve a file larger than 4 GiB using 64-bit offsets | Pass | 2026-08-15: fully served a 7,111,486,912-byte NSP; unique progress reached the full size, proving offsets beyond 4 GiB. |
 | 7 | Sustain a complete large-file transfer | Pass | 2026-08-15: DBI installed the 7.11 GB NSP successfully; host reported `FullyServed` with 7,111,486,912 unique bytes and 7,111,502,736 wire bytes. |
 | 8 | Stop returns within the bounded timeout | Pass | 2026-08-15: Ctrl-C cancelled the active XCI session and returned to `Idle` in under one second. |
@@ -81,7 +81,12 @@ Record Pass/Fail, evidence, and observed errors for every item:
 - 2026-08-15: a separate 7,111,486,912-byte NSP completed installation. Host
   progress was `FullyServed`; wire bytes exceeded unique bytes by 15,824,
   proving repeated or overlapping reads. Request ordering was not captured, so
-  the explicit non-sequential-order row remains Pending.
+  the explicit non-sequential-order row remained Pending at that point.
+- 2026-08-15: DBI subsequently installed all 34 NSPs from a 2,224,080,769-byte
+  base/update/DLC catalog in 1 minute 24 seconds and reported `OK: 34/34`.
+  Every file reached host-side `FullyServed`; the new request-order telemetry
+  observed non-sequential and backward ranges for every file. DBI then sent
+  `EXIT`, and the host returned to `Idle`.
 
 ## Decision
 
