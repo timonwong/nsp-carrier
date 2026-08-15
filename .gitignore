@@ -1,0 +1,22 @@
+.DS_Store
+.idea/
+.vscode/
+
+# Go build and coverage artifacts
+/bin/
+/dist/
+*.test
+coverage.out
+
+# Wails frontend artifacts (future)
+/build/bin/
+/frontend/dist/
+/frontend/node_modules/
+
+# Local content and diagnostics
+/testdata/local/
+/diagnostics/
+*.nsp
+*.nsz
+*.xci
+*.xcz
