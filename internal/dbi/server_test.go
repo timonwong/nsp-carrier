@@ -87,6 +87,14 @@ func TestServerHandlesTimeoutCancellationDisconnectAndMalformedFrames(t *testing
 			t.Fatalf("Serve() error = %v, want ErrProtocol", err)
 		}
 	})
+
+	t.Run("unsupported command", func(t *testing.T) {
+		request := dbi.EncodeHeader(dbi.Header{Type: dbi.CommandTypeRequest, Command: dbi.CommandID(99)})
+		err := dbi.NewServer(emptyCatalog).Serve(context.Background(), transport.NewMemory(request[:]))
+		if !errors.Is(err, dbi.ErrUnsupportedCommand) {
+			t.Fatalf("Serve() error = %v, want ErrUnsupportedCommand", err)
+		}
+	})
 }
 
 func TestServerServesFileRangeAndRecordsProgress(t *testing.T) {

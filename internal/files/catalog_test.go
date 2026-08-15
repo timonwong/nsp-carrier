@@ -90,6 +90,43 @@ func TestCatalogOpenRangeRejectsChangedOrOutOfBoundsSource(t *testing.T) {
 	}
 }
 
+func TestCatalogOpenRangeSupportsOffsetsBeyondFourGiB(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "large.xci")
+	file, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const offset = int64(1<<32 + 7)
+	if err := file.Truncate(offset + 4); err != nil {
+		file.Close()
+		t.Fatal(err)
+	}
+	if _, err := file.WriteAt([]byte("tail"), offset); err != nil {
+		file.Close()
+		t.Fatal(err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	catalog, err := files.BuildCatalog([]string{path})
+	if err != nil {
+		t.Fatal(err)
+	}
+	reader, err := catalog.OpenRange("large.xci", uint64(offset), 4)
+	if err != nil {
+		t.Fatalf("OpenRange() error = %v", err)
+	}
+	defer reader.Close()
+	got, err := io.ReadAll(reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "tail" {
+		t.Fatalf("range content = %q, want tail", got)
+	}
+}
+
 func TestBuildCatalogRejectsDuplicateBasenames(t *testing.T) {
 	root := t.TempDir()
 	left := filepath.Join(root, "left")

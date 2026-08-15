@@ -19,6 +19,29 @@ Development is deliberately staged:
 See [the design](docs/design.md), [protocol notes](docs/dbi0-protocol.md),
 [Gate 0](docs/gate0.md), and [roadmap](docs/roadmap.md).
 
+## Developer USB spike
+
+On macOS, install the CGO build prerequisites:
+
+```sh
+brew install libusb pkgconf
+```
+
+Run the retained diagnostics CLI with local content paths:
+
+```sh
+go run ./cmd/usb-spike --timeout=30m --verbose -- /path/to/file.nsp /path/to/folder
+```
+
+The CLI recursively builds and freezes the catalog, waits for USB device
+`057e:3000`, discovers exactly one bulk IN/OUT endpoint pair, and serves DBI0
+until DBI exits, the device disconnects, or the context is cancelled. Use
+`--json` for newline-delimited structured logs. Real content files are ignored
+by Git and must never be committed.
+
+Passing automated tests or compiling this CLI does not pass Gate 0; the
+hardware acceptance matrix in `docs/gate0.md` remains authoritative.
+
 ## License
 
 MIT. The implementation is clean-room: upstream projects are behavioral

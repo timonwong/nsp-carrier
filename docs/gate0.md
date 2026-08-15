@@ -23,6 +23,19 @@ item passes on a real Switch in DBI's `Install title from DBIbackend` mode.
 - `go vet ./...`
 - no real NSP/NSZ/XCI/XCZ fixtures
 
+Status on 2026-08-15: **Pass** on the baseline development Mac.
+
+- Unit tests and `go test -race ./...` passed.
+- `go vet ./...` passed.
+- Header and range parser fuzz smoke runs passed.
+- A sparse-file test read a range beyond the 4 GiB boundary.
+- `cmd/usb-spike` built as a Mach-O arm64 executable.
+- `otool -L` confirmed dynamic linkage to Homebrew
+  `/opt/homebrew/opt/libusb/lib/libusb-1.0.0.dylib`.
+
+This status satisfies only the automated prerequisite. It does not change any
+hardware row below from Pending.
+
 ## Hardware acceptance matrix
 
 Record Pass/Fail, evidence, and observed errors for every item:
