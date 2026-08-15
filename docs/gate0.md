@@ -57,7 +57,7 @@ Record Pass/Fail, evidence, and observed errors for every item:
 | 9 | Cable removal does not hang or panic | Pending | |
 | 10 | Reconnect starts a fresh working session | Pass | 2026-08-15: after ending the stale reset-on-connect session, a new no-reset session claimed the device, listed the NSP, and completed installation. |
 | 11 | Handle DBI EXIT | Pass | 2026-08-15: leaving the DBI file list with a second `B` produced host `session_completed` and `Idle`. |
-| 12 | Match the original Python backend on the same device | Pending | |
+| 12 | Match the original Python backend on the same device | Pass | 2026-08-15: classic Python backend commit `ba104f17` reproduced the same XCI behavior on the same Switch and file: transfer completed, then DBI remained in its device-side installation phase. This differential rules out the Go host implementation as the cause of that XCI-specific stall. |
 
 ### Live observations
 
@@ -73,6 +73,11 @@ Record Pass/Fail, evidence, and observed errors for every item:
   at 57 percent. The host stayed ready for the next command and did not fail.
   This is retained as an XCI-specific observation, not counted as installation
   success.
+- 2026-08-15: the same Switch and XCI were then tested with the unmodified
+  classic Python `dbibackend` at commit `ba104f17`. It reproduced the same
+  device-side stall after transfer. No XCI-specific Go workaround will be
+  attempted without a different XCI fixture or evidence that the original
+  backend succeeds with this file.
 - 2026-08-15: a separate 7,111,486,912-byte NSP completed installation. Host
   progress was `FullyServed`; wire bytes exceeded unique bytes by 15,824,
   proving repeated or overlapping reads. Request ordering was not captured, so
