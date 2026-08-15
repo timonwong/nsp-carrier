@@ -30,7 +30,8 @@ brew install libusb pkgconf
 Run the retained diagnostics CLI with local content paths:
 
 ```sh
-go run ./cmd/usb-spike --timeout=30m --verbose -- /path/to/file.nsp /path/to/folder
+make check
+make usb-spike ARGS='--timeout=30m --verbose -- /path/to/file.nsp /path/to/folder'
 ```
 
 The CLI recursively builds and freezes the catalog, waits for USB device
