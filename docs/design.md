@@ -20,17 +20,18 @@ remain architectural targets, not validated platforms.
 
 ```text
 cmd/usb-spike       retained developer diagnostics CLI
-internal/dbi        protocol codec and session state machine
-internal/files      frozen virtual file catalog
+internal/dbi        protocol codec and DBI file server
+internal/files      queue discovery and frozen virtual file catalog
 internal/transport  USB-independent stream boundary and fake transport
 internal/usb        gousb/libusb adapter
-internal/app        future orchestration and frontend event projection
-frontend            future Wails v2 + Svelte/TypeScript UI
+internal/app        queue/session orchestration and frontend snapshots
+desktop_app.go      narrow Wails adapter for dialogs, events, and user intents
+frontend            Wails v2 + Svelte/TypeScript presentation
 ```
 
-The Go backend is the source of truth. A future frontend sends commands and
-renders typed snapshots/events; it does not infer session or completion state.
-Progress events will be throttled to roughly 10-20 Hz.
+The Go backend is the source of truth. The frontend sends intent-level commands
+and renders typed snapshots/events; it does not infer session or completion
+state. Progress snapshots are emitted at no more than 10 Hz.
 
 ## Session model
 
@@ -94,13 +95,13 @@ requested by the end of a session become `NotRequested`, not `Failed`.
   fail the current session with typed errors.
 - A future app close during serving requires confirmation and bounded shutdown.
 
-## Future UI scope
+## UI scope
 
-After Gate 0 passes, the Wails v2 UI will provide file/folder addition, drag
-and drop, queue checkboxes, removal, clear, search, Start/Stop, connection and
-session state, unique-byte progress, structured logs, typed errors, and
-Light/Dark/Auto theme. The UI language is English. The future application
-display name is `NSP Carrier` and its bundle ID is `im.theo.nsp-carrier`.
+The Wails v2 UI provides file/folder addition, drag and drop, queue checkboxes,
+removal, clear, search, Start/Stop, connection and session state, unique-byte
+progress, structured logs, typed errors, and Light/Dark/Auto theme. The UI
+language is English. The application display name is `NSP Carrier` and its
+bundle ID is `im.theo.nsp-carrier`.
 
 Settings persist theme, window geometry, recent file/folder directories, and
 UI preferences. The queue and absolute paths are not restored implicitly.

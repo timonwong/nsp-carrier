@@ -1,8 +1,7 @@
 # nsp-carrier
 
-`nsp-carrier` is a clean Go implementation of the PC-side DBI raw-USB
-file service, with a Wails v2 desktop UI planned after the USB feasibility
-gate passes on real hardware.
+`nsp-carrier` is a clean Go implementation of the PC-side DBI raw-USB file
+service with a Wails v2 + Svelte/TypeScript desktop UI.
 
 The project is not an MTP implementation and cannot prove that a title was
 installed successfully. It can only report host-observable USB session and
@@ -10,11 +9,19 @@ file-serving state.
 
 ## Current phase
 
-Development is deliberately staged:
+The protocol and macOS USB path have passed real-device LIST, range, large-file,
+multi-file, reconnect, Stop, EXIT, and upstream-differential checks. The Wails
+USB MVP is now in progress. The deliberate cable-removal row remains pending
+and must pass before the USB MVP is declared complete.
 
-1. Specify and test the DBI0 protocol core.
-2. Prove the Go/libusb transport on an Apple Silicon Mac with a real Switch.
-3. Build the Wails v2 + Svelte/TypeScript UI only after Gate 0 passes.
+The current UI provides:
+
+- native file and recursive folder selection plus file drop;
+- a selectable, searchable queue with duplicate-basename conflict detection;
+- Start/Stop and canonical Go-owned session state;
+- per-file unique-byte progress, bounded activity logs, and typed errors;
+- Auto, Light, and Dark appearance;
+- the explicit distinction between `FullyServed` and device-side installation.
 
 See [the design](docs/design.md), [protocol notes](docs/dbi0-protocol.md),
 [Gate 0](docs/gate0.md), and [roadmap](docs/roadmap.md).
@@ -47,6 +54,28 @@ by Git and must never be committed.
 
 Passing automated tests or compiling this CLI does not pass Gate 0; the
 hardware acceptance matrix in `docs/gate0.md` remains authoritative.
+
+## Wails UI
+
+Install the pinned Wails v2 CLI and verify the local macOS toolchain:
+
+```sh
+make wails-install
+make wails-doctor
+```
+
+Then run or build the app:
+
+```sh
+make ui-install
+make app-dev
+make app-build
+```
+
+The production development bundle is written to
+`build/bin/NSP Carrier.app`. It is self-signed for local testing only. The
+bundle identifier is `im.theo.nsp-carrier`; public signing, notarisation,
+bundled libusb, and installers remain deferred.
 
 ## License
 

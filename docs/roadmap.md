@@ -10,10 +10,12 @@
 
 ## USB MVP after Gate 0
 
-- Wails v2 with Svelte and TypeScript
-- English macOS utility UI
+- Wails v2.14 with Svelte 5 and TypeScript (implemented)
+- English macOS utility UI (implemented)
 - queue, selection, search, progress, logs, typed errors, Start/Stop
-- Light/Dark/Auto theme
+  (implemented; real-device UI session still to be exercised)
+- Light/Dark/Auto theme (implemented)
+- deliberate cable-removal validation (still pending)
 - no public packaging yet
 
 ## Deferred HTTP

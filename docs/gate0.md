@@ -96,3 +96,7 @@ Record Pass/Fail, evidence, and observed errors for every item:
 
 Real test content remains local and ignored by Git. `Completed` in logs means
 only host-side session completion.
+
+On 2026-08-15 the user explicitly deferred row 9 and requested that Wails UI
+work begin. This changes implementation order, not the acceptance result: row
+9 remains Pending, and the USB MVP is not complete until it is exercised.
