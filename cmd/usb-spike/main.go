@@ -245,6 +245,11 @@ func logProgress(server *dbi.Server, catalog *files.Catalog, sessionID string, l
 			"session_id": sessionID, "name": entry.Name, "status": status,
 			"unique_served_bytes": progress.UniqueServedBytes,
 			"wire_bytes":          progress.WireBytes, "total_bytes": progress.TotalBytes,
+			"range_requests":          progress.RangeRequests,
+			"non_sequential_requests": progress.NonSequentialRequests,
+			"backward_requests":       progress.BackwardRequests,
+			"repeated_requests":       progress.RepeatedRequests,
+			"max_requested_offset":    progress.MaxRequestedOffset,
 		})
 	}
 }

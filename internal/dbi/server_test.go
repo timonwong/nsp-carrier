@@ -206,3 +206,60 @@ func TestServerServesAvailableTailWhenAlignedRangeCrossesEOF(t *testing.T) {
 		t.Fatalf("Progress() = %#v, %v", progress, ok)
 	}
 }
+
+func TestServerRecordsRangeRequestOrdering(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "game.nsp")
+	if err := os.WriteFile(path, []byte("0123456789abcdef"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := files.BuildCatalog([]string{path})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var input []byte
+	for _, request := range []struct {
+		offset uint64
+		size   uint32
+	}{
+		{offset: 0, size: 4},
+		{offset: 4, size: 4},
+		{offset: 2, size: 2},
+		{offset: 2, size: 2},
+	} {
+		detail := make([]byte, 16+len("game.nsp"))
+		binary.LittleEndian.PutUint32(detail[0:4], request.size)
+		binary.LittleEndian.PutUint64(detail[4:12], request.offset)
+		binary.LittleEndian.PutUint32(detail[12:16], uint32(len("game.nsp")))
+		copy(detail[16:], "game.nsp")
+		header := dbi.EncodeHeader(dbi.Header{
+			Type:        dbi.CommandTypeRequest,
+			Command:     dbi.CommandFileRange,
+			PayloadSize: uint32(len(detail)),
+		})
+		ack := dbi.EncodeHeader(dbi.Header{
+			Type:    dbi.CommandTypeAcknowledgement,
+			Command: dbi.CommandFileRange,
+		})
+		input = append(input, header[:]...)
+		input = append(input, detail...)
+		input = append(input, ack[:]...)
+	}
+	exit := dbi.EncodeHeader(dbi.Header{Type: dbi.CommandTypeRequest, Command: dbi.CommandExit})
+	input = append(input, exit[:]...)
+
+	server := dbi.NewServer(catalog)
+	if err := server.Serve(context.Background(), transport.NewMemory(input)); err != nil {
+		t.Fatalf("Serve() error = %v", err)
+	}
+
+	progress, ok := server.Progress("game.nsp")
+	if !ok {
+		t.Fatal("Progress() did not find game.nsp")
+	}
+	if progress.RangeRequests != 4 || progress.NonSequentialRequests != 2 ||
+		progress.BackwardRequests != 1 || progress.RepeatedRequests != 1 ||
+		progress.MaxRequestedOffset != 4 {
+		t.Fatalf("request ordering = %#v", progress)
+	}
+}

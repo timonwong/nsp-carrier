@@ -88,6 +88,7 @@ func (s *Server) serveRange(ctx context.Context, link transport.Duplex, payloadS
 		return fmt.Errorf("open range %q offset=%d size=%d: %w", request.Name, request.Offset, request.Size, err)
 	}
 	defer reader.Close()
+	s.progress[request.Name].RecordRequest(request.Offset, request.Size)
 
 	if err := writeHeader(ctx, link, Header{
 		Type:        CommandTypeResponse,
