@@ -31,8 +31,13 @@ Run the retained diagnostics CLI with local content paths:
 
 ```sh
 make check
+make gate0-probe
 make usb-spike ARGS='--timeout=30m --verbose -- /path/to/file.nsp /path/to/folder'
 ```
+
+`make gate0-probe` builds before it starts waiting. Once it prints that the
+host is ready, open `Install title from DBIbackend` on the Switch; probe mode
+claims the discovered bulk endpoints and exits without serving file content.
 
 The CLI recursively builds and freezes the catalog, waits for USB device
 `057e:3000`, discovers exactly one bulk IN/OUT endpoint pair, and serves DBI0

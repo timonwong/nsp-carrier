@@ -38,6 +38,10 @@ hardware row below from Pending.
 
 ## Hardware acceptance matrix
 
+Run `make gate0-probe` before opening DBI's 60-second backend window. The
+script completes the build first, then waits for and claims the USB device
+without requiring content files.
+
 Record Pass/Fail, evidence, and observed errors for every item:
 
 | # | Required behavior | Result | Evidence |

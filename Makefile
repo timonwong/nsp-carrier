@@ -7,7 +7,7 @@ USB_SPIKE := $(BIN_DIR)/usb-spike
 
 .DEFAULT_GOAL := help
 
-.PHONY: help deps fmt fmt-check test test-race fuzz vet build check usb-spike clean
+.PHONY: help deps fmt fmt-check test test-race fuzz vet build check gate0-probe usb-spike clean
 
 help: ## Show available targets.
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-12s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -43,6 +43,9 @@ build: ## Build the macOS USB diagnostics CLI.
 	$(GO) build -trimpath -o $(USB_SPIKE) ./cmd/usb-spike
 
 check: fmt-check test test-race fuzz vet build ## Run the complete automated Gate 0 prerequisite.
+
+gate0-probe: ## Build first, then wait for and claim DBI USB endpoints.
+	./scripts/gate0-probe.sh
 
 usb-spike: build ## Run the USB spike; pass arguments with ARGS='...'.
 	./$(USB_SPIKE) $(ARGS)

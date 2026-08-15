@@ -26,6 +26,7 @@ type options struct {
 	timeout        time.Duration
 	verbose        bool
 	json           bool
+	probe          bool
 	resetOnConnect bool
 }
 
@@ -48,32 +49,39 @@ func run(arguments []string) error {
 	flags.DurationVar(&config.timeout, "timeout", 0, "stop after this duration (0 waits indefinitely)")
 	flags.BoolVar(&config.verbose, "verbose", false, "include descriptor and local path details")
 	flags.BoolVar(&config.json, "json", false, "emit newline-delimited JSON logs")
+	flags.BoolVar(&config.probe, "probe", false, "discover and claim DBI USB endpoints without serving files")
 	flags.BoolVar(&config.resetOnConnect, "reset-on-connect", true, "reset the DBI USB device before claiming it")
 	if err := flags.Parse(arguments); err != nil {
 		return err
 	}
-	if flags.NArg() == 0 {
+	if flags.NArg() == 0 && !config.probe {
 		return errors.New("provide at least one NSP/NSZ/XCI/XCZ file or directory")
 	}
 
 	log := logger{json: config.json, verbose: config.verbose}
-	catalog, err := files.BuildCatalog(flags.Args())
-	if err != nil {
-		return err
-	}
-	if len(catalog.Entries()) == 0 {
-		return errors.New("catalog contains no supported files")
+	var catalog *files.Catalog
+	if !config.probe {
+		var err error
+		catalog, err = files.BuildCatalog(flags.Args())
+		if err != nil {
+			return err
+		}
+		if len(catalog.Entries()) == 0 {
+			return errors.New("catalog contains no supported files")
+		}
 	}
 	log.event("info", "environment", map[string]any{
 		"go": runtime.Version(), "os": runtime.GOOS, "arch": runtime.GOARCH,
-		"gousb": "v1.1.3", "vid": "057e", "pid": "3000",
+		"gousb": "v1.1.3", "vid": "057e", "pid": "3000", "probe": config.probe,
 	})
-	for _, entry := range catalog.Entries() {
-		fields := map[string]any{"id": entry.ID, "name": entry.Name, "size": entry.Size}
-		if config.verbose {
-			fields["path"] = entry.Path
+	if catalog != nil {
+		for _, entry := range catalog.Entries() {
+			fields := map[string]any{"id": entry.ID, "name": entry.Name, "size": entry.Size}
+			if config.verbose {
+				fields["path"] = entry.Path
+			}
+			log.event("info", "catalog_file", fields)
 		}
-		log.event("info", "catalog_file", fields)
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -128,6 +136,14 @@ func run(arguments []string) error {
 			"alternate":   info.Selection.Alternate,
 			"in_endpoint": info.Selection.InEndpoint, "out_endpoint": info.Selection.OutEndpoint,
 		})
+		if config.probe {
+			closeErr := connection.Close()
+			if err := machine.Transition(app.StateCompleted, sessionID); err != nil {
+				return errors.Join(closeErr, err)
+			}
+			log.event("info", "probe_complete", map[string]any{"session_id": sessionID})
+			return stopMachine(machine, sessionID, closeErr, log)
+		}
 		if err := machine.Transition(app.StateServing, sessionID); err != nil {
 			_ = connection.Close()
 			return err
