@@ -53,7 +53,10 @@ func (e *DuplicateBasenameError) Error() string {
 
 func (e *DuplicateBasenameError) Unwrap() error { return ErrDuplicateBasename }
 
-func BuildCatalog(inputs []string) (*Catalog, error) {
+// Discover expands files and directories into supported regular files while
+// preserving addition order. It intentionally keeps duplicate basenames so a
+// queue UI can present and resolve those conflicts before freezing a Catalog.
+func Discover(inputs []string) ([]Entry, error) {
 	var paths []string
 	seenPaths := make(map[string]struct{})
 
@@ -131,18 +134,12 @@ func BuildCatalog(inputs []string) (*Catalog, error) {
 	}
 
 	entries := make([]Entry, 0, len(paths))
-	byName := make(map[string]Entry, len(paths))
-	conflicts := make(map[string][]string)
 	for _, path := range paths {
 		info, err := os.Stat(path)
 		if err != nil {
 			return nil, err
 		}
 		name := filepath.Base(path)
-		if previous, ok := byName[name]; ok {
-			conflicts[name] = append([]string{previous.Path}, path)
-			continue
-		}
 		hash := sha256.Sum256([]byte(path))
 		entry := Entry{
 			ID:      hex.EncodeToString(hash[:16]),
@@ -153,7 +150,28 @@ func BuildCatalog(inputs []string) (*Catalog, error) {
 			info:    info,
 		}
 		entries = append(entries, entry)
-		byName[name] = entry
+	}
+	return entries, nil
+}
+
+func BuildCatalog(inputs []string) (*Catalog, error) {
+	entries, err := Discover(inputs)
+	if err != nil {
+		return nil, err
+	}
+
+	byName := make(map[string]Entry, len(entries))
+	conflicts := make(map[string][]string)
+	for _, entry := range entries {
+		previous, exists := byName[entry.Name]
+		if !exists {
+			byName[entry.Name] = entry
+			continue
+		}
+		if len(conflicts[entry.Name]) == 0 {
+			conflicts[entry.Name] = append(conflicts[entry.Name], previous.Path)
+		}
+		conflicts[entry.Name] = append(conflicts[entry.Name], entry.Path)
 	}
 	if len(conflicts) > 0 {
 		names := make([]string, 0, len(conflicts))

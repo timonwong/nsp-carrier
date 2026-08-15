@@ -161,4 +161,12 @@ func TestBuildCatalogRejectsDuplicateBasenames(t *testing.T) {
 	if !errors.Is(err, files.ErrDuplicateBasename) {
 		t.Fatalf("BuildCatalog() error = %v, want ErrDuplicateBasename", err)
 	}
+
+	discovered, err := files.Discover([]string{left, right})
+	if err != nil {
+		t.Fatalf("Discover() error = %v", err)
+	}
+	if len(discovered) != 2 || discovered[0].Name != "game.nsp" || discovered[1].Name != "game.nsp" {
+		t.Fatalf("Discover() = %#v", discovered)
+	}
 }
