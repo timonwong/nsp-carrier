@@ -1,0 +1,20 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "NSP Carrier",
+  "outputfilename": "nsp-carrier",
+  "frontend:install": "npm ci",
+  "frontend:build": "npm run build",
+  "frontend:dev:watcher": "npm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "author": {
+    "name": "timonwong",
+    "email": ""
+  },
+  "info": {
+    "companyName": "Theo",
+    "productName": "NSP Carrier",
+    "productVersion": "0.1.0",
+    "copyright": "Copyright 2026 Theo",
+    "comments": "A local DBI USB file carrier"
+  }
+}
