@@ -48,15 +48,15 @@ Record Pass/Fail, evidence, and observed errors for every item:
 | ---: | --- | --- | --- |
 | 1 | Detect `057e:3000` | Pass | 2026-08-15: `gate0-probe` detected the device after direct replug on bus 1, address 5, at SuperSpeed. |
 | 2 | Discover and claim exactly one usable bulk IN/OUT pair | Pass | 2026-08-15: reset-on-connect and claim succeeded for configuration 1, interface 0, alternate 0, bulk IN 1 and OUT 1; probe closed cleanly. |
-| 3 | Complete LIST exchange | Pending | |
-| 4 | Complete metadata range | Pending | |
+| 3 | Complete LIST exchange | Pass | 2026-08-15: both XCI and NSP basenames appeared in DBI; the NSP session proceeded from the listed file to installation. |
+| 4 | Complete metadata range | Pass | 2026-08-15: DBI parsed the NSP metadata and completed signature verification and installation. |
 | 5 | Complete non-sequential range requests | Pending | |
-| 6 | Serve a file larger than 4 GiB using 64-bit offsets | Pending | |
-| 7 | Sustain a complete large-file transfer | Pending | |
-| 8 | Stop returns within the bounded timeout | Pending | |
+| 6 | Serve a file larger than 4 GiB using 64-bit offsets | Pass | 2026-08-15: fully served a 7,111,486,912-byte NSP; unique progress reached the full size, proving offsets beyond 4 GiB. |
+| 7 | Sustain a complete large-file transfer | Pass | 2026-08-15: DBI installed the 7.11 GB NSP successfully; host reported `FullyServed` with 7,111,486,912 unique bytes and 7,111,502,736 wire bytes. |
+| 8 | Stop returns within the bounded timeout | Pass | 2026-08-15: Ctrl-C cancelled the active XCI session and returned to `Idle` in under one second. |
 | 9 | Cable removal does not hang or panic | Pending | |
-| 10 | Reconnect starts a fresh working session | Pending | |
-| 11 | Handle DBI EXIT | Pending | |
+| 10 | Reconnect starts a fresh working session | Pass | 2026-08-15: after ending the stale reset-on-connect session, a new no-reset session claimed the device, listed the NSP, and completed installation. |
+| 11 | Handle DBI EXIT | Pass | 2026-08-15: leaving the DBI file list with a second `B` produced host `session_completed` and `Idle`. |
 | 12 | Match the original Python backend on the same device | Pending | |
 
 ### Live observations
@@ -66,8 +66,17 @@ Record Pass/Fail, evidence, and observed errors for every item:
   request as out of bounds. The remaining 655,872 bytes and a 1 MiB request
   imply a 392,704-byte EOF overshoot. The original Python backend permits this
   pattern by sending only the available tail bytes. A regression test now
-  covers that behavior without zero-padding; the hardware row remains Pending
-  until the fixed build completes the session.
+  covers that behavior without zero-padding. The fixed build subsequently
+  reached DBI's transfer and signature verification, as recorded below.
+- 2026-08-15: after the aligned-tail fix, DBI reported `[TRANSFER OK]` and
+  `[SIGNATURE: OK]` for the XCI, but its device-side install progress remained
+  at 57 percent. The host stayed ready for the next command and did not fail.
+  This is retained as an XCI-specific observation, not counted as installation
+  success.
+- 2026-08-15: a separate 7,111,486,912-byte NSP completed installation. Host
+  progress was `FullyServed`; wire bytes exceeded unique bytes by 15,824,
+  proving repeated or overlapping reads. Request ordering was not captured, so
+  the explicit non-sequential-order row remains Pending.
 
 ## Decision
 
