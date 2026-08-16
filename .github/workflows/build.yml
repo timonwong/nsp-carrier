@@ -107,7 +107,8 @@ jobs:
           Copy-Item "C:\msys64\ucrt64\bin\libusb-1.0.dll" $stage
           Compress-Archive -Path "$stage\*" -DestinationPath "nsp-carrier-windows-amd64.zip"
           $hash = (Get-FileHash "nsp-carrier-windows-amd64.zip" -Algorithm SHA256).Hash.ToLowerInvariant()
-          "$hash *nsp-carrier-windows-amd64.zip" | Out-File "nsp-carrier-windows-amd64.zip.sha256" -Encoding ascii
+          $checksum = "$hash *nsp-carrier-windows-amd64.zip`n"
+          [IO.File]::WriteAllText("$PWD\nsp-carrier-windows-amd64.zip.sha256", $checksum, [Text.Encoding]::ASCII)
 
       - name: Bundle libusb in macOS application
         if: runner.os == 'macOS'
