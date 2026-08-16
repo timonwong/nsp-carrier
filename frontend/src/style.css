@@ -95,6 +95,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: none;
 
 .titlebar {
   --wails-draggable: drag;
+  position: relative;
   display: flex;
   align-items: center;
   gap: 14px;
@@ -107,7 +108,12 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: none;
 .brand, .titlebar-actions, .primary-actions, .section-heading, .file-cell,
 .progress-copy, .empty-actions { display: flex; align-items: center; }
 
-.brand { gap: 12px; }
+.brand {
+  position: absolute;
+  left: 50%;
+  gap: 12px;
+  transform: translateX(-50%);
+}
 .brand-mark {
   width: 34px; height: 34px; border-radius: 10px; background: var(--text);
   display: grid; grid-template-columns: 1fr 1fr; gap: 3px; padding: 7px;
