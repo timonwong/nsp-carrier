@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
-	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -76,8 +75,8 @@ func TestServerHandlesTimeoutCancellationDisconnectAndMalformedFrames(t *testing
 
 	t.Run("disconnect", func(t *testing.T) {
 		err := dbi.NewServer(emptyCatalog).Serve(context.Background(), transport.NewMemory(nil))
-		if !errors.Is(err, io.EOF) {
-			t.Fatalf("Serve() error = %v, want io.EOF", err)
+		if !errors.Is(err, transport.ErrDisconnected) {
+			t.Fatalf("Serve() error = %v, want ErrDisconnected", err)
 		}
 	})
 

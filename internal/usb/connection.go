@@ -142,7 +142,7 @@ func (c *Connection) Read(ctx context.Context, destination []byte) (int, error) 
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return read, ctxErr
 	}
-	return read, err
+	return read, normalizeTransferError(err)
 }
 
 func (c *Connection) Write(ctx context.Context, source []byte) (int, error) {
@@ -150,7 +150,20 @@ func (c *Connection) Write(ctx context.Context, source []byte) (int, error) {
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return written, ctxErr
 	}
-	return written, err
+	return written, normalizeTransferError(err)
+}
+
+func normalizeTransferError(err error) error {
+	switch {
+	case err == nil:
+		return nil
+	case errors.Is(err, gousb.TransferNoDevice), errors.Is(err, gousb.ErrorNoDevice):
+		return fmt.Errorf("%w: %v", transport.ErrDisconnected, err)
+	case errors.Is(err, gousb.TransferTimedOut), errors.Is(err, gousb.ErrorTimeout):
+		return fmt.Errorf("%w: %v", transport.ErrTimeout, err)
+	default:
+		return err
+	}
 }
 
 func (c *Connection) Close() error {

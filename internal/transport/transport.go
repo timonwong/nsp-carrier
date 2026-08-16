@@ -5,7 +5,10 @@ import (
 	"errors"
 )
 
-var ErrTimeout = errors.New("transport timeout")
+var (
+	ErrDisconnected = errors.New("transport disconnected")
+	ErrTimeout      = errors.New("transport timeout")
+)
 
 type Duplex interface {
 	Read(context.Context, []byte) (int, error)
