@@ -154,7 +154,7 @@ func (r *Runner) Run(ctx context.Context, request Request) error {
 		case serveErr == nil:
 			emit(sessionID, StateCompleted, progress, closeErr)
 			return closeErr
-		case ctx.Err() != nil:
+		case ctx.Err() != nil || errors.Is(serveErr, context.Canceled):
 			err = errors.Join(ctx.Err(), serveErr, closeErr)
 			emit(sessionID, StateStopping, progress, err)
 			return err

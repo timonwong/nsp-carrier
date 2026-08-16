@@ -37,6 +37,18 @@ func TestNormalizeTransferError(t *testing.T) {
 	}
 }
 
+func TestReadClassifiesCancelledTransferAsContextCancellation(t *testing.T) {
+	connection := newConnection(
+		faultingInEndpoint{err: gousb.TransferCancelled},
+		nil,
+		&fakeResources{},
+	)
+
+	if _, err := connection.Read(context.Background(), make([]byte, 1)); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Read() error = %v, want context.Canceled", err)
+	}
+}
+
 func TestReadClassifiesGenericTransferErrorAsDisconnected(t *testing.T) {
 	connection := newConnection(
 		faultingInEndpoint{err: gousb.TransferError},

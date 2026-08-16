@@ -131,6 +131,11 @@ func TestRunnerClassifiesCancellationDisconnectAndProtocolFailure(t *testing.T) 
 			name: "malformed protocol frame", ctx: context.Background,
 			link: transport.NewMemory(make([]byte, dbi.HeaderSize)), wantErr: dbi.ErrProtocol, wantState: host.StateFailed,
 		},
+		{
+			name: "transfer cancellation", ctx: context.Background,
+			link:    transport.NewMemory(nil, transport.WithReadFaults(context.Canceled)),
+			wantErr: context.Canceled, wantState: host.StateStopping,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

@@ -233,6 +233,8 @@ func normalizeTransferError(err error) error {
 	switch {
 	case err == nil:
 		return nil
+	case errors.Is(err, gousb.TransferCancelled):
+		return context.Canceled
 	case errors.Is(err, gousb.TransferNoDevice),
 		errors.Is(err, gousb.TransferError),
 		errors.Is(err, gousb.ErrorNoDevice),
