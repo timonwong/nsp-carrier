@@ -16,8 +16,10 @@ transfer, and deliberate cable-removal checks. Public packaging and signing
 remain deferred.
 
 The Awoo USB profile has an independent clean-room adapter with pinned
-transcript, unit, fuzz, race, and differential coverage. Its separate
-real-device acceptance gate is still pending, so it is compatible but not
+transcript, unit, fuzz, race, and differential coverage. Awoo Installer 1.6.2
+has passed real-device XCI and greater-than-4-GiB NSP transfers, Stop, cable
+removal, and fresh-session reconnect checks. `.nsz`, `.xcz`, multi-file, and
+raw command-capture evidence remain, so it is compatible but not yet
 `Verified`. Goldleaf remains unavailable until its ordered adapter phase.
 
 The current UI provides:
