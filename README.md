@@ -13,9 +13,9 @@ title was installed successfully.
 - **DBI:** Gate 0 and the Wails USB MVP passed real-Switch validation. A
   reconnect starts a fresh serving session; it does not resume an interrupted
   device-side install.
-- **Awoo USB:** Core transfer, lifecycle, and protocol-differential checks pass
-  on Awoo Installer 1.6.2. `.nsz` and `.xcz` still lack real-device evidence,
-  so this version is compatible but not yet `Verified`.
+- **Awoo USB:** Awoo Installer 1.6.2 is `Verified` for the recorded acceptance
+  matrix, including real-device `.nsp`, `.nsz`, `.xci`, and `.xcz` transfers.
+  Other versions remain protocol-family compatible until separately verified.
 - **Goldleaf:** Goldleaf 1.2.0 is `Verified` for the recorded acceptance
   matrix. Other 0.10+ versions are protocol-family compatible until separately
   verified.

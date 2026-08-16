@@ -65,7 +65,7 @@ var profileRegistry = []Profile{
 		ID: ProfileAwoo, DisplayName: "Awoo USB", ProtocolFamily: "Awoo USB",
 		Transport: TransportUSB, SupportedExtensions: []string{".nsp", ".nsz", ".xci", ".xcz"},
 		WireNamespace: NamespaceFlatBasename, FilesystemAccess: FilesystemNone,
-		CompatibleVersions: []string{}, AdapterAvailable: true,
+		CompatibleVersions: []string{}, VerifiedVersions: []string{"1.6.2"}, AdapterAvailable: true,
 	},
 	{
 		ID: ProfileGoldleaf, DisplayName: "Goldleaf 0.10+", ProtocolFamily: "Goldleaf 0.10+",
