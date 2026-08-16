@@ -169,6 +169,8 @@ func runConfigured(ctx context.Context, config options, catalog *files.Catalog, 
 	}
 	var warningSession string
 	var warningSequence uint64
+	var lastState host.Event
+	var haveLastState bool
 	err := host.NewRunner().Run(ctx, host.Request{
 		Profile: config.profile, Catalog: catalog, Connector: connector,
 		Observe: func(event host.Event) {
@@ -178,7 +180,11 @@ func runConfigured(ctx context.Context, config options, catalog *files.Catalog, 
 			if event.Err != nil {
 				fields["error"] = event.Err.Error()
 			}
-			log.event("info", "state", fields)
+			if !haveLastState || !lastState.SameState(event) {
+				log.event("info", "state", fields)
+				lastState = event
+				haveLastState = true
+			}
 			if event.SessionID != "" && event.SessionID != warningSession {
 				warningSession = event.SessionID
 				warningSequence = 0

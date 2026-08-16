@@ -56,6 +56,23 @@ type Event struct {
 	Err       error                       `json:"-"`
 }
 
+// SameState reports whether two events describe the same observable session
+// state. Progress and warnings are snapshots delivered alongside that state;
+// changes to them do not constitute a state transition.
+func (e Event) SameState(other Event) bool {
+	return e.Profile == other.Profile &&
+		e.SessionID == other.SessionID &&
+		e.State == other.State &&
+		errorText(e.Err) == errorText(other.Err)
+}
+
+func errorText(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
+}
+
 type Warning struct {
 	Sequence  uint64 `json:"sequence"`
 	Operation string `json:"operation"`
