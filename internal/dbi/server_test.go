@@ -22,7 +22,7 @@ func TestServerListsFrozenCatalogAndExitsAcrossShortIO(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	catalog, err := files.BuildCatalog([]string{root})
+	catalog, err := files.BuildCatalog([]string{root}, host.AllSupportedExtensions())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +65,7 @@ func TestServerRejectsDuplicateBasenamesInItsWireProjection(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	catalog, err := files.BuildCatalog(paths)
+	catalog, err := files.BuildCatalog(paths, host.AllSupportedExtensions())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +77,7 @@ func TestServerRejectsDuplicateBasenamesInItsWireProjection(t *testing.T) {
 }
 
 func TestServerHandlesTimeoutCancellationDisconnectAndMalformedFrames(t *testing.T) {
-	emptyCatalog, err := files.BuildCatalog(nil)
+	emptyCatalog, err := files.BuildCatalog(nil, host.AllSupportedExtensions())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,7 +132,7 @@ func TestServerServesFileRangeAndRecordsProgress(t *testing.T) {
 	if err := os.WriteFile(path, []byte("0123456789"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	catalog, err := files.BuildCatalog([]string{path})
+	catalog, err := files.BuildCatalog([]string{path}, host.AllSupportedExtensions())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -187,7 +187,7 @@ func TestServerServesAvailableTailWhenAlignedRangeCrossesEOF(t *testing.T) {
 	if err := os.WriteFile(path, []byte("0123456789"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	catalog, err := files.BuildCatalog([]string{path})
+	catalog, err := files.BuildCatalog([]string{path}, host.AllSupportedExtensions())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -242,7 +242,7 @@ func TestServerRecordsRangeRequestOrdering(t *testing.T) {
 	if err := os.WriteFile(path, []byte("0123456789abcdef"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	catalog, err := files.BuildCatalog([]string{path})
+	catalog, err := files.BuildCatalog([]string{path}, host.AllSupportedExtensions())
 	if err != nil {
 		t.Fatal(err)
 	}

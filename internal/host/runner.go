@@ -13,13 +13,10 @@ import (
 )
 
 var (
-	ErrUnknownProfile = errors.New("unknown installer profile")
-	ErrDeviceNotFound = errors.New("installer USB device not found")
+	ErrUnknownProfile     = errors.New("unknown installer profile")
+	ErrDeviceNotFound     = errors.New("installer USB device not found")
+	ErrProfileUnavailable = errors.New("installer profile adapter is not implemented")
 )
-
-type ProfileID string
-
-const ProfileDBI ProfileID = "dbi"
 
 type State string
 
@@ -86,11 +83,21 @@ func NewRunner() *Runner {
 }
 
 func (r *Runner) Run(ctx context.Context, request Request) error {
-	if request.Profile != ProfileDBI {
+	if _, ok := ProfileByID(request.Profile); !ok {
 		return fmt.Errorf("%w: %q", ErrUnknownProfile, request.Profile)
 	}
 	if request.Catalog == nil || request.Connector == nil {
 		return errors.New("host session requires a frozen catalog and USB connector")
+	}
+	validationErrors, err := ValidateCatalog(request.Profile, request.Catalog)
+	if err != nil {
+		return err
+	}
+	if len(validationErrors) > 0 {
+		return CatalogValidationErrors(validationErrors)
+	}
+	if request.Profile != ProfileDBI {
+		return fmt.Errorf("%w: %s", ErrProfileUnavailable, request.Profile)
 	}
 	if _, err := dbi.NewServer(request.Catalog, nil); err != nil {
 		return err

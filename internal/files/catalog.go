@@ -21,13 +21,6 @@ var (
 	ErrSourceChanged     = errors.New("source file changed")
 )
 
-var supportedExtensions = map[string]struct{}{
-	".nsp": {},
-	".nsz": {},
-	".xci": {},
-	".xcz": {},
-}
-
 type Entry struct {
 	ID      string
 	Path    string
@@ -56,15 +49,19 @@ func (e *DuplicateBasenameError) Unwrap() error { return ErrDuplicateBasename }
 // Discover expands files and directories into supported regular files while
 // preserving addition order. It intentionally keeps duplicate basenames so a
 // queue UI can present and resolve those conflicts before freezing a Catalog.
-func Discover(inputs []string) ([]Entry, error) {
+func Discover(inputs []string, supportedExtensions []string) ([]Entry, error) {
 	var paths []string
 	seenPaths := make(map[string]struct{})
+	allowedExtensions := make(map[string]struct{}, len(supportedExtensions))
+	for _, extension := range supportedExtensions {
+		allowedExtensions[strings.ToLower(extension)] = struct{}{}
+	}
 
 	addFile := func(path string, info fs.FileInfo) error {
 		if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
 			return nil
 		}
-		if _, ok := supportedExtensions[strings.ToLower(filepath.Ext(path))]; !ok {
+		if _, ok := allowedExtensions[strings.ToLower(filepath.Ext(path))]; !ok {
 			return nil
 		}
 		absolute, err := filepath.Abs(path)
@@ -154,8 +151,8 @@ func Discover(inputs []string) ([]Entry, error) {
 	return entries, nil
 }
 
-func BuildCatalog(inputs []string) (*Catalog, error) {
-	entries, err := Discover(inputs)
+func BuildCatalog(inputs []string, supportedExtensions []string) (*Catalog, error) {
+	entries, err := Discover(inputs, supportedExtensions)
 	if err != nil {
 		return nil, err
 	}

@@ -30,6 +30,10 @@ export function SetAllSelected(arg1) {
   return window['go']['main']['DesktopApp']['SetAllSelected'](arg1);
 }
 
+export function SetProfile(arg1) {
+  return window['go']['main']['DesktopApp']['SetProfile'](arg1);
+}
+
 export function SetSelected(arg1, arg2) {
   return window['go']['main']['DesktopApp']['SetSelected'](arg1, arg2);
 }

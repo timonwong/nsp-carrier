@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
@@ -23,6 +24,7 @@ type options struct {
 	json           bool
 	probe          bool
 	resetOnConnect bool
+	profile        host.ProfileID
 }
 
 type logger struct {
@@ -32,42 +34,68 @@ type logger struct {
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
+		if jsonRequested(os.Args[1:]) {
+			var validationErrors host.CatalogValidationErrors
+			if errors.As(err, &validationErrors) {
+				log := logger{json: true}
+				for _, validationError := range validationErrors {
+					log.event("error", "catalog_validation", map[string]any{
+						"profile_error_code": validationError.Code,
+						"source_id":          validationError.SourceID,
+						"name":               validationError.Name,
+						"error":              validationError.Message,
+					})
+				}
+				os.Exit(1)
+			}
+			logger{json: true}.event("error", "fatal", map[string]any{"error": err.Error()})
+			os.Exit(1)
+		}
 		fmt.Fprintln(os.Stderr, "usb-spike:", err)
 		os.Exit(1)
 	}
 }
 
+func jsonRequested(arguments []string) bool {
+	for _, argument := range arguments {
+		if argument == "--json" || argument == "-json" || argument == "--json=true" || argument == "-json=true" {
+			return true
+		}
+	}
+	return false
+}
+
 func run(arguments []string) error {
-	flags := flag.NewFlagSet("usb-spike", flag.ContinueOnError)
-	flags.SetOutput(os.Stderr)
-	var config options
-	flags.DurationVar(&config.timeout, "timeout", 0, "stop after this duration (0 waits indefinitely)")
-	flags.BoolVar(&config.verbose, "verbose", false, "include descriptor and local path details")
-	flags.BoolVar(&config.json, "json", false, "emit newline-delimited JSON logs")
-	flags.BoolVar(&config.probe, "probe", false, "discover and claim DBI USB endpoints without serving files")
-	flags.BoolVar(&config.resetOnConnect, "reset-on-connect", true, "reset the DBI USB device before claiming it")
-	if err := flags.Parse(arguments); err != nil {
+	config, inputs, err := parseOptions(arguments)
+	if err != nil {
 		return err
 	}
-	if flags.NArg() == 0 && !config.probe {
-		return errors.New("provide at least one NSP/NSZ/XCI/XCZ file or directory")
+	if len(inputs) == 0 && !config.probe {
+		return errors.New("provide at least one selected profile-compatible file or directory")
 	}
 
 	log := logger{json: config.json, verbose: config.verbose}
 	var catalog *files.Catalog
 	if !config.probe {
-		var err error
-		catalog, err = files.BuildCatalog(flags.Args())
+		catalog, err = files.BuildCatalog(inputs, host.AllSupportedExtensions())
 		if err != nil {
 			return err
 		}
 		if len(catalog.Entries()) == 0 {
-			return errors.New("catalog contains no supported files")
+			return errors.New("catalog contains no supported content files")
+		}
+		validationErrors, err := host.ValidateCatalog(config.profile, catalog)
+		if err != nil {
+			return err
+		}
+		if len(validationErrors) > 0 {
+			return host.CatalogValidationErrors(validationErrors)
 		}
 	}
 	log.event("info", "environment", map[string]any{
 		"go": runtime.Version(), "os": runtime.GOOS, "arch": runtime.GOARCH,
 		"gousb": "v1.1.3", "vid": "057e", "pid": "3000", "probe": config.probe,
+		"profile": config.profile,
 	})
 	if catalog != nil {
 		for _, entry := range catalog.Entries() {
@@ -87,6 +115,36 @@ func run(arguments []string) error {
 		defer cancel()
 	}
 
+	return runConfigured(ctx, config, catalog, log)
+}
+
+func parseOptions(arguments []string) (options, []string, error) {
+	flags := flag.NewFlagSet("usb-spike", flag.ContinueOnError)
+	flags.SetOutput(os.Stderr)
+	var config options
+	var profileID string
+	flags.DurationVar(&config.timeout, "timeout", 0, "stop after this duration (0 waits indefinitely)")
+	flags.BoolVar(&config.verbose, "verbose", false, "include descriptor and local path details")
+	flags.BoolVar(&config.json, "json", false, "emit newline-delimited JSON logs")
+	flags.BoolVar(&config.probe, "probe", false, "discover and claim installer USB endpoints without serving files")
+	flags.BoolVar(&config.resetOnConnect, "reset-on-connect", true, "reset the installer USB device before claiming it")
+	profiles := host.Profiles()
+	profileIDs := make([]string, 0, len(profiles))
+	for _, profile := range profiles {
+		profileIDs = append(profileIDs, string(profile.ID))
+	}
+	flags.StringVar(&profileID, "profile", string(host.ProfileDBI), "installer profile: "+strings.Join(profileIDs, ", "))
+	if err := flags.Parse(arguments); err != nil {
+		return options{}, nil, err
+	}
+	config.profile = host.ProfileID(profileID)
+	if _, ok := host.ProfileByID(config.profile); !ok {
+		return options{}, nil, fmt.Errorf("%w: %q", host.ErrUnknownProfile, config.profile)
+	}
+	return config, flags.Args(), nil
+}
+
+func runConfigured(ctx context.Context, config options, catalog *files.Catalog, log logger) error {
 	if config.probe {
 		connection, err := usbtransport.Open(usbtransport.OpenOptions{
 			ResetOnConnect: config.resetOnConnect,
@@ -110,7 +168,7 @@ func run(arguments []string) error {
 		OnOpen: func(opened usbtransport.DeviceInfo) { info = opened },
 	}
 	err := host.NewRunner().Run(ctx, host.Request{
-		Profile: host.ProfileDBI, Catalog: catalog, Connector: connector,
+		Profile: config.profile, Catalog: catalog, Connector: connector,
 		Observe: func(event host.Event) {
 			fields := map[string]any{
 				"session_id": event.SessionID, "state": event.State, "profile": event.Profile,
@@ -133,7 +191,7 @@ func run(arguments []string) error {
 			}
 		},
 	})
-	log.event("info", "state", map[string]any{"state": "Idle", "profile": host.ProfileDBI})
+	log.event("info", "state", map[string]any{"state": "Idle", "profile": config.profile})
 	if errors.Is(err, context.Canceled) {
 		return nil
 	}

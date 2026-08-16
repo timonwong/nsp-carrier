@@ -6,10 +6,13 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
+	"slices"
 	"testing"
 	"time"
 
 	"github.com/timonwong/nsp-carrier/internal/files"
+	"github.com/timonwong/nsp-carrier/internal/host"
 )
 
 func TestControllerQueueSnapshotsEncodeEmptyCollectionsAsArrays(t *testing.T) {
@@ -22,7 +25,7 @@ func TestControllerQueueSnapshotsEncodeEmptyCollectionsAsArrays(t *testing.T) {
 		}
 	}
 
-	controller := newController(func(context.Context, *files.Catalog, func(sessionUpdate)) error {
+	controller := newController(func(context.Context, host.ProfileID, *files.Catalog, func(host.Event)) error {
 		return errors.New("runner should not start")
 	})
 	initial := controller.Snapshot()
@@ -53,6 +56,19 @@ func TestControllerQueueSnapshotsEncodeEmptyCollectionsAsArrays(t *testing.T) {
 	if string(encoded) == "" || snapshot.Items == nil || snapshot.Logs == nil {
 		t.Fatalf("empty snapshot collections must encode as arrays: %s", encoded)
 	}
+	var wailsContract struct {
+		ActiveProfile    host.ProfileID             `json:"activeProfile"`
+		Profiles         []host.Profile             `json:"profiles"`
+		ValidationErrors []host.ItemValidationError `json:"validationErrors"`
+	}
+	if err := json.Unmarshal(encoded, &wailsContract); err != nil {
+		t.Fatal(err)
+	}
+	if wailsContract.ActiveProfile != host.ProfileDBI || !slices.EqualFunc(wailsContract.Profiles, host.Profiles(), func(left, right host.Profile) bool {
+		return reflect.DeepEqual(left, right)
+	}) || wailsContract.ValidationErrors == nil {
+		t.Fatalf("Wails profile contract = %#v", wailsContract)
+	}
 }
 
 func TestControllerKeepsConflictsVisibleAndResolvesThemBySelection(t *testing.T) {
@@ -68,7 +84,7 @@ func TestControllerKeepsConflictsVisibleAndResolvesThemBySelection(t *testing.T)
 		}
 	}
 
-	controller := newController(func(context.Context, *files.Catalog, func(sessionUpdate)) error {
+	controller := newController(func(context.Context, host.ProfileID, *files.Catalog, func(host.Event)) error {
 		return errors.New("runner should not start")
 	})
 	snapshot, err := controller.Add([]string{left, right})
@@ -94,9 +110,9 @@ func TestControllerOwnsStartStopLifecycleAcrossItsInterface(t *testing.T) {
 		t.Fatal(err)
 	}
 	runnerStarted := make(chan struct{})
-	controller := newController(func(ctx context.Context, _ *files.Catalog, update func(sessionUpdate)) error {
-		update(sessionUpdate{state: StateConnected, sessionID: "session-1"})
-		update(sessionUpdate{state: StateServing, sessionID: "session-1"})
+	controller := newController(func(ctx context.Context, _ host.ProfileID, _ *files.Catalog, update func(host.Event)) error {
+		update(host.Event{State: host.StateConnected, SessionID: "session-1"})
+		update(host.Event{State: host.StateServing, SessionID: "session-1"})
 		close(runnerStarted)
 		<-ctx.Done()
 		return ctx.Err()
@@ -127,4 +143,73 @@ func TestControllerOwnsStartStopLifecycleAcrossItsInterface(t *testing.T) {
 	if snapshot := controller.Snapshot(); snapshot.State != StateIdle || snapshot.CanStop {
 		t.Fatalf("stopped snapshot = %#v", snapshot)
 	}
+}
+
+func TestControllerPersistsIdleOnlyProfileAndRevalidatesWithoutMutatingSelection(t *testing.T) {
+	root := t.TempDir()
+	for _, name := range []string{"base.nsp", "compressed.nsz"} {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(name), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	store := &fakeProfileStore{profile: host.ProfileDBI}
+	runnerStarted := make(chan host.ProfileID, 1)
+	releaseRunner := make(chan struct{})
+	controller := NewControllerWithDependencies(func(ctx context.Context, profile host.ProfileID, _ *files.Catalog, _ func(host.Event)) error {
+		runnerStarted <- profile
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-releaseRunner:
+			return nil
+		}
+	}, store)
+	snapshot, err := controller.Add([]string{root})
+	if err != nil || !snapshot.CanStart || snapshot.ActiveProfile != host.ProfileDBI {
+		t.Fatalf("DBI snapshot = %#v, %v", snapshot, err)
+	}
+	beforeSelection := []bool{snapshot.Items[0].Selected, snapshot.Items[1].Selected}
+	snapshot, err = controller.SetProfile(string(host.ProfileGoldleaf))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snapshot.ActiveProfile != host.ProfileGoldleaf || snapshot.CanStart || len(snapshot.ValidationErrors) != 1 || store.profile != host.ProfileGoldleaf {
+		t.Fatalf("Goldleaf snapshot = %#v, stored = %q", snapshot, store.profile)
+	}
+	afterSelection := []bool{snapshot.Items[0].Selected, snapshot.Items[1].Selected}
+	if !slices.Equal(beforeSelection, afterSelection) {
+		t.Fatalf("profile change mutated selection: %v -> %v", beforeSelection, afterSelection)
+	}
+	var compressedID string
+	for _, item := range snapshot.Items {
+		if item.Name == "compressed.nsz" {
+			compressedID = item.ID
+		}
+	}
+	snapshot, err = controller.SetSelected(compressedID, false)
+	if err != nil || snapshot.CanStart || len(snapshot.ValidationErrors) != 0 {
+		t.Fatalf("revalidated snapshot = %#v, %v", snapshot, err)
+	}
+	snapshot, err = controller.SetProfile(string(host.ProfileDBI))
+	if err != nil || !snapshot.CanStart {
+		t.Fatalf("DBI restored snapshot = %#v, %v", snapshot, err)
+	}
+	if _, err := controller.Start(); err != nil {
+		t.Fatal(err)
+	}
+	if profile := <-runnerStarted; profile != host.ProfileDBI {
+		t.Fatalf("runner profile = %q", profile)
+	}
+	if _, err := controller.SetProfile(string(host.ProfileDBI)); !errors.Is(err, ErrBusy) {
+		t.Fatalf("busy SetProfile() error = %v", err)
+	}
+	close(releaseRunner)
+}
+
+type fakeProfileStore struct{ profile host.ProfileID }
+
+func (s *fakeProfileStore) LoadProfile() (host.ProfileID, error) { return s.profile, nil }
+func (s *fakeProfileStore) SaveProfile(profile host.ProfileID) error {
+	s.profile = profile
+	return nil
 }

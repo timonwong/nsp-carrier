@@ -15,7 +15,7 @@ import (
 )
 
 func TestRunnerDispatchesDBIAndOwnsServingSessionState(t *testing.T) {
-	catalog, err := files.BuildCatalog(nil)
+	catalog, err := files.BuildCatalog(nil, host.AllSupportedExtensions())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +45,7 @@ func TestRunnerDispatchesDBIAndOwnsServingSessionState(t *testing.T) {
 }
 
 func TestRunnerRejectsUnknownProfileBeforeWireIO(t *testing.T) {
-	catalog, err := files.BuildCatalog(nil)
+	catalog, err := files.BuildCatalog(nil, host.AllSupportedExtensions())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +71,7 @@ func TestRunnerValidatesDBIWireProjectionBeforeOpeningUSB(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	catalog, err := files.BuildCatalog(paths)
+	catalog, err := files.BuildCatalog(paths, host.AllSupportedExtensions())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +85,7 @@ func TestRunnerValidatesDBIWireProjectionBeforeOpeningUSB(t *testing.T) {
 }
 
 func TestRunnerClassifiesCancellationDisconnectAndProtocolFailure(t *testing.T) {
-	catalog, err := files.BuildCatalog(nil)
+	catalog, err := files.BuildCatalog(nil, host.AllSupportedExtensions())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,7 +147,7 @@ func TestRunnerClassifiesCancellationDisconnectAndProtocolFailure(t *testing.T) 
 }
 
 func TestRunnerCreatesFreshServingSessionIdentity(t *testing.T) {
-	catalog, err := files.BuildCatalog(nil)
+	catalog, err := files.BuildCatalog(nil, host.AllSupportedExtensions())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -209,7 +209,7 @@ func TestRunnerReportsProgressByStableSourceID(t *testing.T) {
 	if err := os.WriteFile(path, []byte("0123456789"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	catalog, err := files.BuildCatalog([]string{path})
+	catalog, err := files.BuildCatalog([]string{path}, host.AllSupportedExtensions())
 	if err != nil {
 		t.Fatal(err)
 	}

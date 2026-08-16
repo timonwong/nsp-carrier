@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	appcore "github.com/timonwong/nsp-carrier/internal/app"
+	"github.com/timonwong/nsp-carrier/internal/host"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -44,7 +47,7 @@ func (a *DesktopApp) beforeClose(ctx context.Context) bool {
 	choice, err := runtime.MessageDialog(ctx, runtime.MessageDialogOptions{
 		Type:          runtime.QuestionDialog,
 		Title:         "Stop the active session?",
-		Message:       "NSP Carrier is serving DBI. Stopping now will interrupt the current transfer.",
+		Message:       "NSP Carrier is serving the selected installer profile. Stopping now will interrupt the current transfer.",
 		Buttons:       []string{"Cancel", "Stop and Quit"},
 		DefaultButton: "Cancel",
 		CancelButton:  "Cancel",
@@ -61,11 +64,12 @@ func (a *DesktopApp) GetSnapshot() appcore.ViewSnapshot {
 }
 
 func (a *DesktopApp) ChooseFiles() (appcore.ViewSnapshot, error) {
+	displayName, pattern := contentFileFilter()
 	paths, err := runtime.OpenMultipleFilesDialog(a.ctx, runtime.OpenDialogOptions{
 		Title: "Add title files",
 		Filters: []runtime.FileFilter{{
-			DisplayName: "Nintendo Switch title files (*.nsp, *.nsz, *.xci, *.xcz)",
-			Pattern:     "*.nsp;*.nsz;*.xci;*.xcz",
+			DisplayName: displayName,
+			Pattern:     pattern,
 		}},
 		ResolvesAliases: true,
 	})
@@ -73,6 +77,15 @@ func (a *DesktopApp) ChooseFiles() (appcore.ViewSnapshot, error) {
 		return a.controller.Snapshot(), err
 	}
 	return a.controller.Add(paths)
+}
+
+func contentFileFilter() (string, string) {
+	extensions := host.AllSupportedExtensions()
+	patterns := make([]string, len(extensions))
+	for index, extension := range extensions {
+		patterns[index] = "*" + extension
+	}
+	return fmt.Sprintf("Nintendo Switch content files (%s)", strings.Join(patterns, ", ")), strings.Join(patterns, ";")
 }
 
 func (a *DesktopApp) ChooseFolder() (appcore.ViewSnapshot, error) {
@@ -104,6 +117,10 @@ func (a *DesktopApp) SetSelected(id string, selected bool) (appcore.ViewSnapshot
 
 func (a *DesktopApp) SetAllSelected(selected bool) (appcore.ViewSnapshot, error) {
 	return a.controller.SetAllSelected(selected)
+}
+
+func (a *DesktopApp) SetProfile(profileID string) (appcore.ViewSnapshot, error) {
+	return a.controller.SetProfile(profileID)
 }
 
 func (a *DesktopApp) Start() (appcore.ViewSnapshot, error) {

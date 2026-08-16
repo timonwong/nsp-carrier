@@ -16,6 +16,8 @@ export function Remove(arg1:Array<string>):Promise<app.ViewSnapshot>;
 
 export function SetAllSelected(arg1:boolean):Promise<app.ViewSnapshot>;
 
+export function SetProfile(arg1:string):Promise<app.ViewSnapshot>;
+
 export function SetSelected(arg1:string,arg2:boolean):Promise<app.ViewSnapshot>;
 
 export function Start():Promise<app.ViewSnapshot>;

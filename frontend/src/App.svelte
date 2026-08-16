@@ -7,6 +7,7 @@
     GetSnapshot,
     Remove,
     SetAllSelected,
+    SetProfile,
     SetSelected,
     Start,
     Stop,
@@ -32,6 +33,9 @@
     canStop: false,
     hasConflict: false,
     lastError: '',
+    activeProfile: 'dbi',
+    profiles: [],
+    validationErrors: [],
   })
 
   let snapshot = emptySnapshot
@@ -46,6 +50,7 @@
     : snapshot.items
   $: allSelected = snapshot.items.length > 0 && snapshot.selectedCount === snapshot.items.length
   $: busy = snapshot.state !== 'Idle'
+  $: activeProfile = snapshot.profiles.find((profile) => profile.id === snapshot.activeProfile)
 
   onMount(() => {
     const savedTheme = localStorage.getItem('nsp-carrier-theme')
@@ -91,6 +96,9 @@
     const next = new app.ViewSnapshot(source)
     next.items ??= []
     next.logs ??= []
+    next.profiles ??= []
+    next.validationErrors ??= []
+    for (const item of next.items) item.validationErrors ??= []
     return next
   }
 
@@ -108,6 +116,10 @@
 
   function statusLabel(status: string): string {
     return status.replace(/([a-z])([A-Z])/g, '$1 $2')
+  }
+
+  function formatExtensions(extensions: string[]): string {
+    return extensions.map((value) => value.slice(1).toUpperCase()).join(', ')
   }
 </script>
 
@@ -128,6 +140,18 @@
       <span class:active={busy} class="state-pill">
         <span class="state-dot"></span>{snapshot.state}
       </span>
+      <label class="profile-picker" aria-label="Installer profile">
+        <span>Installer</span>
+        <select
+          value={snapshot.activeProfile}
+          disabled={busy || working}
+          on:change={(event) => run(() => SetProfile((event.currentTarget as HTMLSelectElement).value))}
+        >
+          {#each snapshot.profiles as profile (profile.id)}
+            <option value={profile.id}>{profile.displayName}</option>
+          {/each}
+        </select>
+      </label>
       <label class="theme-picker" aria-label="Appearance">
         <span>Theme</span>
         <select value={theme} on:change={(event) => applyTheme((event.currentTarget as HTMLSelectElement).value as Theme)}>
@@ -169,7 +193,21 @@
   {#if snapshot.hasConflict}
     <div class="alert warning" role="status">
       <strong>Duplicate filenames</strong>
-      <span>DBI identifies files by basename. Uncheck or remove conflicting rows before starting.</span>
+      <span>{activeProfile?.displayName ?? 'The selected profile'} requires unique wire filenames. Uncheck or remove conflicting rows before starting.</span>
+    </div>
+  {/if}
+
+  {#if snapshot.validationErrors.some((error) => error.code === 'unsupported-extension')}
+    <div class="alert warning" role="status">
+      <strong>Unsupported selection</strong>
+      <span>{activeProfile?.displayName ?? 'The selected profile'} cannot serve every selected file. Selection was not changed.</span>
+    </div>
+  {/if}
+
+  {#if activeProfile && !activeProfile.adapterAvailable}
+    <div class="alert warning" role="status">
+      <strong>Adapter not available yet</strong>
+      <span>{activeProfile.displayName} can be selected and validated, but Start remains disabled until its protocol adapter is delivered.</span>
     </div>
   {/if}
 
@@ -187,7 +225,7 @@
         <div class="empty-state">
           <div class="empty-icon" aria-hidden="true"><span>⇣</span></div>
           <h3>Drop title files here</h3>
-          <p>NSP, NSZ, XCI and XCZ are supported. Folders are scanned recursively.</p>
+          <p>{activeProfile ? `${formatExtensions(activeProfile.supportedExtensions)} are eligible for ${activeProfile.displayName}.` : 'Choose an installer profile.'} Folders are scanned recursively.</p>
           <div class="empty-actions">
             <button class="button primary" disabled={busy || working} on:click={() => run(ChooseFiles)}>Choose files</button>
             <button class="button" disabled={busy || working} on:click={() => run(ChooseFolder)}>Choose folder</button>
@@ -227,6 +265,9 @@
                   <div class="file-copy">
                     <strong>{item.name}</strong>
                     <span>{item.path}</span>
+                    {#each item.validationErrors as validationError (validationError.code)}
+                      <span class="validation-error">{validationError.message}</span>
+                    {/each}
                     {#if item.progress > 0 && item.progress < 100}
                       <div class="row-progress"><span style={`width: ${Math.min(item.progress, 100)}%`}></span></div>
                     {/if}
@@ -268,7 +309,10 @@
       </div>
       <div class="host-note">
         <strong>Host-observable status only</strong>
-        <span>Fully Served does not prove that DBI installed a title.</span>
+        <span>Fully Served does not prove that {activeProfile?.displayName ?? 'the installer'} installed a title.</span>
+        {#if activeProfile}
+          <span>{activeProfile.protocolFamily} compatibility is not exact-version verification. NSP Carrier does not guess an undetected version.</span>
+        {/if}
       </div>
     </aside>
   </div>
@@ -293,7 +337,7 @@
       <button class="button stop" on:click={() => run(async () => Stop())}>Stop</button>
     {:else}
       <button class="button start" disabled={!snapshot.canStart || working} on:click={() => run(Start)}>
-        Start USB service <span aria-hidden="true">→</span>
+        Start {activeProfile?.displayName ?? 'USB'} service <span aria-hidden="true">→</span>
       </button>
     {/if}
   </footer>

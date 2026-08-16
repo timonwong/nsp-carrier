@@ -8,20 +8,11 @@ import (
 	usbtransport "github.com/timonwong/nsp-carrier/internal/usb"
 )
 
-func runUSBSession(ctx context.Context, catalog *files.Catalog, update func(sessionUpdate)) error {
+func runUSBSession(ctx context.Context, profile host.ProfileID, catalog *files.Catalog, update func(host.Event)) error {
 	return host.NewRunner().Run(ctx, host.Request{
-		Profile:   host.ProfileDBI,
+		Profile:   profile,
 		Catalog:   catalog,
 		Connector: usbtransport.Connector{Options: usbtransport.OpenOptions{ResetOnConnect: false}},
-		Observe: func(event host.Event) {
-			var eventErr error
-			if event.State == host.StateFailed {
-				eventErr = event.Err
-			}
-			update(sessionUpdate{
-				state: State(event.State), sessionID: event.SessionID,
-				progress: event.Progress, err: eventErr,
-			})
-		},
+		Observe:   update,
 	})
 }

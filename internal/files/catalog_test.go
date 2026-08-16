@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/timonwong/nsp-carrier/internal/files"
+	"github.com/timonwong/nsp-carrier/internal/host"
 )
 
 func TestBuildCatalogRecursesFiltersAndSkipsSymlinks(t *testing.T) {
@@ -29,7 +30,7 @@ func TestBuildCatalogRecursesFiltersAndSkipsSymlinks(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	catalog, err := files.BuildCatalog([]string{root, filepath.Join(root, "base.NSP")})
+	catalog, err := files.BuildCatalog([]string{root, filepath.Join(root, "base.NSP")}, host.AllSupportedExtensions())
 	if err != nil {
 		t.Fatalf("BuildCatalog() error = %v", err)
 	}
@@ -50,7 +51,7 @@ func TestCatalogOpenRangeReadsFrozenSource(t *testing.T) {
 	if err := os.WriteFile(path, []byte("0123456789"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	catalog, err := files.BuildCatalog([]string{path})
+	catalog, err := files.BuildCatalog([]string{path}, host.AllSupportedExtensions())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +79,7 @@ func TestCatalogOpenRangeClampsAtEOFAndRejectsChangedOrPastEOFSource(t *testing.
 	if err := os.WriteFile(path, []byte("0123456789"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	catalog, err := files.BuildCatalog([]string{path})
+	catalog, err := files.BuildCatalog([]string{path}, host.AllSupportedExtensions())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +123,7 @@ func TestCatalogOpenRangeSupportsOffsetsBeyondFourGiB(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	catalog, err := files.BuildCatalog([]string{path})
+	catalog, err := files.BuildCatalog([]string{path}, host.AllSupportedExtensions())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,7 +161,7 @@ func TestFrozenCatalogKeepsDuplicateBasenamesWithDistinctSourceIdentity(t *testi
 		}
 	}
 
-	catalog, err := files.BuildCatalog([]string{left, right})
+	catalog, err := files.BuildCatalog([]string{left, right}, host.AllSupportedExtensions())
 	if err != nil {
 		t.Fatalf("BuildCatalog() error = %v", err)
 	}

@@ -11,29 +11,32 @@ import (
 
 	"github.com/timonwong/nsp-carrier/internal/files"
 	"github.com/timonwong/nsp-carrier/internal/host"
+	"github.com/timonwong/nsp-carrier/internal/settings"
 )
 
 var (
-	ErrBusy          = errors.New("a USB session is active")
-	ErrEmptyQueue    = errors.New("select at least one file")
-	ErrQueueConflict = errors.New("selected files contain duplicate basenames")
-	ErrQueueItem     = errors.New("queue item not found")
+	ErrBusy            = errors.New("a USB session is active")
+	ErrEmptyQueue      = errors.New("select at least one file")
+	ErrQueueConflict   = errors.New("selected files contain duplicate basenames")
+	ErrQueueValidation = errors.New("selected files are not supported by the installer profile")
+	ErrQueueItem       = errors.New("queue item not found")
 )
 
 const maxLogEntries = 300
 
 type QueueItem struct {
-	ID                string  `json:"id"`
-	Name              string  `json:"name"`
-	Path              string  `json:"path"`
-	Size              int64   `json:"size"`
-	Selected          bool    `json:"selected"`
-	Conflict          bool    `json:"conflict"`
-	Status            string  `json:"status"`
-	UniqueServedBytes uint64  `json:"uniqueServedBytes"`
-	WireBytes         uint64  `json:"wireBytes"`
-	Progress          float64 `json:"progress"`
-	Requested         bool    `json:"requested"`
+	ID                string                     `json:"id"`
+	Name              string                     `json:"name"`
+	Path              string                     `json:"path"`
+	Size              int64                      `json:"size"`
+	Selected          bool                       `json:"selected"`
+	Conflict          bool                       `json:"conflict"`
+	Status            string                     `json:"status"`
+	UniqueServedBytes uint64                     `json:"uniqueServedBytes"`
+	WireBytes         uint64                     `json:"wireBytes"`
+	Progress          float64                    `json:"progress"`
+	Requested         bool                       `json:"requested"`
+	ValidationErrors  []host.ItemValidationError `json:"validationErrors"`
 }
 
 type LogEntry struct {
@@ -43,50 +46,68 @@ type LogEntry struct {
 }
 
 type ViewSnapshot struct {
-	State             State       `json:"state"`
-	SessionID         string      `json:"sessionId"`
-	Items             []QueueItem `json:"items"`
-	Logs              []LogEntry  `json:"logs"`
-	SelectedCount     int         `json:"selectedCount"`
-	SelectedBytes     int64       `json:"selectedBytes"`
-	RequestedBytes    uint64      `json:"requestedBytes"`
-	UniqueServedBytes uint64      `json:"uniqueServedBytes"`
-	WireBytes         uint64      `json:"wireBytes"`
-	OverallProgress   float64     `json:"overallProgress"`
-	CanStart          bool        `json:"canStart"`
-	CanStop           bool        `json:"canStop"`
-	HasConflict       bool        `json:"hasConflict"`
-	LastError         string      `json:"lastError"`
+	State             State                      `json:"state"`
+	SessionID         string                     `json:"sessionId"`
+	Items             []QueueItem                `json:"items"`
+	Logs              []LogEntry                 `json:"logs"`
+	SelectedCount     int                        `json:"selectedCount"`
+	SelectedBytes     int64                      `json:"selectedBytes"`
+	RequestedBytes    uint64                     `json:"requestedBytes"`
+	UniqueServedBytes uint64                     `json:"uniqueServedBytes"`
+	WireBytes         uint64                     `json:"wireBytes"`
+	OverallProgress   float64                    `json:"overallProgress"`
+	CanStart          bool                       `json:"canStart"`
+	CanStop           bool                       `json:"canStop"`
+	HasConflict       bool                       `json:"hasConflict"`
+	LastError         string                     `json:"lastError"`
+	ActiveProfile     host.ProfileID             `json:"activeProfile"`
+	Profiles          []host.Profile             `json:"profiles"`
+	ValidationErrors  []host.ItemValidationError `json:"validationErrors"`
 }
 
-type sessionUpdate struct {
-	state     State
-	sessionID string
-	progress  map[string]host.ProgressSnapshot
-	err       error
-}
-
-type sessionRunner func(context.Context, *files.Catalog, func(sessionUpdate)) error
+type SessionRunner func(context.Context, host.ProfileID, *files.Catalog, func(host.Event)) error
 
 type Controller struct {
-	mu        sync.Mutex
-	items     []QueueItem
-	logs      []LogEntry
-	state     State
-	sessionID string
-	lastError string
-	sink      func(ViewSnapshot)
-	runner    sessionRunner
-	cancel    context.CancelFunc
-	done      chan struct{}
+	mu               sync.Mutex
+	items            []QueueItem
+	logs             []LogEntry
+	state            State
+	sessionID        string
+	lastError        string
+	sink             func(ViewSnapshot)
+	runner           SessionRunner
+	store            settings.ProfileStore
+	profile          host.ProfileID
+	validationErrors []host.ItemValidationError
+	cancel           context.CancelFunc
+	done             chan struct{}
 }
 
 func NewController() *Controller {
-	return newController(runUSBSession)
+	store, err := settings.DefaultStore()
+	if err != nil {
+		return newController(runUSBSession)
+	}
+	return newControllerWithStore(runUSBSession, store)
 }
 
-func newController(runner sessionRunner) *Controller {
-	return &Controller{state: StateIdle, runner: runner}
+func newController(runner SessionRunner) *Controller {
+	return newControllerWithStore(runner, nil)
+
+}
+
+func NewControllerWithDependencies(runner SessionRunner, store settings.ProfileStore) *Controller {
+	return newControllerWithStore(runner, store)
+}
+
+func newControllerWithStore(runner SessionRunner, store settings.ProfileStore) *Controller {
+	profile := host.ProfileDBI
+	if store != nil {
+		if loaded, err := store.LoadProfile(); err == nil {
+			profile = loaded
+		}
+	}
+	return &Controller{state: StateIdle, runner: runner, store: store, profile: profile}
 }
 
 func (c *Controller) SetSink(sink func(ViewSnapshot)) {
@@ -105,8 +126,34 @@ func (c *Controller) Snapshot() ViewSnapshot {
 	return c.snapshotLocked()
 }
 
+func (c *Controller) SetProfile(profileID string) (ViewSnapshot, error) {
+	id := host.ProfileID(profileID)
+	if _, ok := host.ProfileByID(id); !ok {
+		return c.Snapshot(), fmt.Errorf("%w: %q", host.ErrUnknownProfile, id)
+	}
+	c.mu.Lock()
+	if c.state != StateIdle {
+		c.mu.Unlock()
+		return c.Snapshot(), ErrBusy
+	}
+	if c.store != nil {
+		if err := c.store.SaveProfile(id); err != nil {
+			c.mu.Unlock()
+			return c.Snapshot(), err
+		}
+	}
+	c.profile = id
+	c.revalidateLocked()
+	profile, _ := host.ProfileByID(id)
+	c.appendLogLocked("info", "Selected installer profile "+profile.DisplayName)
+	snapshot, sink := c.snapshotLocked(), c.sink
+	c.mu.Unlock()
+	c.emit(sink, snapshot)
+	return snapshot, nil
+}
+
 func (c *Controller) Add(inputs []string) (ViewSnapshot, error) {
-	discovered, err := files.Discover(inputs)
+	discovered, err := files.Discover(inputs, host.AllSupportedExtensions())
 	if err != nil {
 		return c.Snapshot(), err
 	}
@@ -132,7 +179,7 @@ func (c *Controller) Add(inputs []string) (ViewSnapshot, error) {
 		existing[entry.Path] = struct{}{}
 		added++
 	}
-	c.recomputeConflictsLocked()
+	c.revalidateLocked()
 	c.appendLogLocked("info", fmt.Sprintf("Added %d supported file(s)", added))
 	snapshot, sink := c.snapshotLocked(), c.sink
 	c.mu.Unlock()
@@ -160,7 +207,7 @@ func (c *Controller) Remove(ids []string) (ViewSnapshot, error) {
 		c.mu.Unlock()
 		return c.Snapshot(), ErrQueueItem
 	}
-	c.recomputeConflictsLocked()
+	c.revalidateLocked()
 	c.appendLogLocked("info", fmt.Sprintf("Removed %d file(s)", removed))
 	snapshot, sink := c.snapshotLocked(), c.sink
 	c.mu.Unlock()
@@ -175,6 +222,7 @@ func (c *Controller) Clear() (ViewSnapshot, error) {
 		return c.Snapshot(), ErrBusy
 	}
 	c.items = nil
+	c.validationErrors = nil
 	c.appendLogLocked("info", "Cleared the queue")
 	snapshot, sink := c.snapshotLocked(), c.sink
 	c.mu.Unlock()
@@ -200,7 +248,7 @@ func (c *Controller) SetSelected(id string, selected bool) (ViewSnapshot, error)
 		c.mu.Unlock()
 		return c.Snapshot(), ErrQueueItem
 	}
-	c.recomputeConflictsLocked()
+	c.revalidateLocked()
 	snapshot, sink := c.snapshotLocked(), c.sink
 	c.mu.Unlock()
 	c.emit(sink, snapshot)
@@ -216,7 +264,7 @@ func (c *Controller) SetAllSelected(selected bool) (ViewSnapshot, error) {
 	for index := range c.items {
 		c.items[index].Selected = selected
 	}
-	c.recomputeConflictsLocked()
+	c.revalidateLocked()
 	snapshot, sink := c.snapshotLocked(), c.sink
 	c.mu.Unlock()
 	c.emit(sink, snapshot)
@@ -228,6 +276,11 @@ func (c *Controller) Start() (ViewSnapshot, error) {
 	if c.state != StateIdle {
 		c.mu.Unlock()
 		return c.Snapshot(), ErrBusy
+	}
+	activeProfile, _ := host.ProfileByID(c.profile)
+	if !activeProfile.AdapterAvailable {
+		c.mu.Unlock()
+		return c.Snapshot(), fmt.Errorf("%w: %s", host.ErrProfileUnavailable, c.profile)
 	}
 	var paths []string
 	for _, item := range c.items {
@@ -243,7 +296,11 @@ func (c *Controller) Start() (ViewSnapshot, error) {
 		c.mu.Unlock()
 		return c.Snapshot(), ErrQueueConflict
 	}
-	catalog, err := files.BuildCatalog(paths)
+	if len(c.validationErrors) > 0 {
+		c.mu.Unlock()
+		return c.Snapshot(), ErrQueueValidation
+	}
+	catalog, err := files.BuildCatalog(paths, host.AllSupportedExtensions())
 	if err != nil {
 		c.mu.Unlock()
 		return c.Snapshot(), err
@@ -261,13 +318,15 @@ func (c *Controller) Start() (ViewSnapshot, error) {
 	c.state = StateWaitingForDevice
 	c.sessionID = ""
 	c.lastError = ""
-	c.appendLogLocked("info", fmt.Sprintf("Waiting for DBI with %d selected file(s)", len(paths)))
+	profile := c.profile
+	capabilities, _ := host.ProfileByID(profile)
+	c.appendLogLocked("info", fmt.Sprintf("Waiting for %s with %d selected file(s)", capabilities.DisplayName, len(paths)))
 	snapshot, sink, done := c.snapshotLocked(), c.sink, c.done
 	c.mu.Unlock()
 	c.emit(sink, snapshot)
 
 	go func() {
-		err := c.runner(ctx, catalog, c.handleSessionUpdate)
+		err := c.runner(ctx, profile, catalog, c.handleSessionEvent)
 		c.finishSession(err)
 		close(done)
 	}()
@@ -312,29 +371,31 @@ func (c *Controller) IsBusy() bool {
 	return c.state != StateIdle
 }
 
-func (c *Controller) handleSessionUpdate(update sessionUpdate) {
+func (c *Controller) handleSessionEvent(event host.Event) {
 	c.mu.Lock()
 	previousState := c.state
-	if previousState == StateStopping && update.state != StateFailed && update.state != StateCompleted {
-		update.state = StateStopping
+	nextState := State(event.State)
+	if previousState == StateStopping && nextState != StateFailed && nextState != StateCompleted {
+		nextState = StateStopping
 	}
-	c.state = update.state
-	if update.sessionID != "" {
-		c.sessionID = update.sessionID
+	c.state = nextState
+	if event.SessionID != "" {
+		c.sessionID = event.SessionID
 	}
-	if update.err != nil {
-		c.lastError = update.err.Error()
-		c.appendLogLocked("error", update.err.Error())
+	if nextState == StateFailed && event.Err != nil {
+		c.lastError = event.Err.Error()
+		c.appendLogLocked("error", event.Err.Error())
 	}
-	c.applyProgressLocked(update.progress)
-	if update.state == StateConnected && previousState != StateConnected {
+	c.applyProgressLocked(event.Progress)
+	profile, _ := host.ProfileByID(c.profile)
+	if nextState == StateConnected && previousState != StateConnected {
 		c.appendLogLocked("info", "Nintendo Switch connected")
-	} else if update.state == StateServing && previousState != StateServing {
-		c.appendLogLocked("info", "Serving DBI file requests")
-	} else if update.state == StateDisconnected && previousState != StateDisconnected {
+	} else if nextState == StateServing && previousState != StateServing {
+		c.appendLogLocked("info", "Serving "+profile.DisplayName+" file requests")
+	} else if nextState == StateDisconnected && previousState != StateDisconnected {
 		c.appendLogLocked("warning", "Nintendo Switch disconnected; waiting for a fresh session")
-	} else if update.state == StateCompleted && previousState != StateCompleted {
-		c.appendLogLocked("success", "Host-side DBI session completed")
+	} else if nextState == StateCompleted && previousState != StateCompleted {
+		c.appendLogLocked("success", "Host-side "+profile.DisplayName+" session completed")
 	}
 	snapshot, sink := c.snapshotLocked(), c.sink
 	c.mu.Unlock()
@@ -376,15 +437,40 @@ func (c *Controller) applyProgressLocked(progress map[string]host.ProgressSnapsh
 	}
 }
 
-func (c *Controller) recomputeConflictsLocked() {
-	counts := make(map[string]int)
-	for _, item := range c.items {
-		if item.Selected {
-			counts[item.Name]++
+func (c *Controller) revalidateLocked() {
+	c.validationErrors = nil
+	paths := make([]string, 0, len(c.items))
+	for index := range c.items {
+		c.items[index].Conflict = false
+		c.items[index].ValidationErrors = []host.ItemValidationError{}
+		if c.items[index].Selected {
+			paths = append(paths, c.items[index].Path)
 		}
 	}
+	if len(paths) == 0 {
+		return
+	}
+	catalog, err := files.BuildCatalog(paths, host.AllSupportedExtensions())
+	if err != nil {
+		return
+	}
+	validationErrors, err := host.ValidateCatalog(c.profile, catalog)
+	if err != nil {
+		return
+	}
+	c.validationErrors = validationErrors
+	bySourceID := make(map[string][]host.ItemValidationError)
+	for _, validationError := range validationErrors {
+		bySourceID[validationError.SourceID] = append(bySourceID[validationError.SourceID], validationError)
+	}
 	for index := range c.items {
-		c.items[index].Conflict = c.items[index].Selected && counts[c.items[index].Name] > 1
+		item := &c.items[index]
+		item.ValidationErrors = append(item.ValidationErrors, bySourceID[item.ID]...)
+		for _, validationError := range item.ValidationErrors {
+			if validationError.Code == host.ValidationDuplicateWireName {
+				item.Conflict = true
+			}
+		}
 	}
 }
 
@@ -410,9 +496,9 @@ func (c *Controller) appendLogLocked(level, message string) {
 func (c *Controller) snapshotLocked() ViewSnapshot {
 	snapshot := ViewSnapshot{
 		State: c.state, SessionID: c.sessionID, LastError: c.lastError,
-		Items:   append([]QueueItem{}, c.items...),
-		Logs:    append([]LogEntry{}, c.logs...),
-		CanStop: c.state != StateIdle,
+		Items: append([]QueueItem{}, c.items...), Logs: append([]LogEntry{}, c.logs...),
+		CanStop: c.state != StateIdle, ActiveProfile: c.profile,
+		Profiles: host.Profiles(), ValidationErrors: append([]host.ItemValidationError{}, c.validationErrors...),
 	}
 	for _, item := range c.items {
 		if item.Selected {
@@ -431,7 +517,9 @@ func (c *Controller) snapshotLocked() ViewSnapshot {
 	if snapshot.RequestedBytes > 0 {
 		snapshot.OverallProgress = float64(snapshot.UniqueServedBytes) / float64(snapshot.RequestedBytes) * 100
 	}
-	snapshot.CanStart = c.state == StateIdle && snapshot.SelectedCount > 0 && !snapshot.HasConflict
+	snapshot.CanStart = c.state == StateIdle && snapshot.SelectedCount > 0 && len(snapshot.ValidationErrors) == 0
+	activeProfile, _ := host.ProfileByID(c.profile)
+	snapshot.CanStart = snapshot.CanStart && activeProfile.AdapterAvailable
 	return snapshot
 }
 

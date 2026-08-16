@@ -14,7 +14,7 @@ func TestProgressSeparatesUniqueRangesFromWireBytesAndOwnsFileState(t *testing.T
 	if err := os.WriteFile(path, make([]byte, 100), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	catalog, err := files.BuildCatalog([]string{path})
+	catalog, err := files.BuildCatalog([]string{path}, host.AllSupportedExtensions())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,7 +50,7 @@ func TestProgressKeepsPartialReadPartialAtTerminalState(t *testing.T) {
 	if err := os.WriteFile(path, make([]byte, 10), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	catalog, err := files.BuildCatalog([]string{path})
+	catalog, err := files.BuildCatalog([]string{path}, host.AllSupportedExtensions())
 	if err != nil {
 		t.Fatal(err)
 	}

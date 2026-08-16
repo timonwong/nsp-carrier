@@ -120,11 +120,12 @@ button { color: inherit; }
 }
 .state-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); }
 .state-pill.active .state-dot { background: var(--success); box-shadow: 0 0 0 4px color-mix(in srgb, var(--success) 15%, transparent); }
-.theme-picker { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; }
-.theme-picker select {
+.theme-picker, .profile-picker { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; }
+.theme-picker select, .profile-picker select {
   height: 30px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-solid);
   padding: 0 26px 0 9px; color: var(--text); outline: none;
 }
+.profile-picker select { min-width: 116px; }
 
 .toolbar { gap: 10px; padding: 12px 24px; }
 .primary-actions { gap: 8px; }
@@ -190,6 +191,7 @@ input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--accent);
 .file-copy strong, .file-copy > span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .file-copy strong { font-size: 11px; font-weight: 650; }
 .file-copy > span { margin-top: 3px; color: var(--faint); font-size: 9px; }
+.file-copy > .validation-error { color: var(--danger); white-space: normal; }
 .row-progress { height: 2px; margin-top: 6px; border-radius: 3px; background: var(--panel-muted); overflow: hidden; }
 .row-progress span, .progress-track span { display: block; height: 100%; background: var(--accent); transition: width 160ms linear; }
 .size-cell { color: var(--muted); font-variant-numeric: tabular-nums; }

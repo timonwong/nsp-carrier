@@ -10,7 +10,7 @@ WAILS_VERSION ?= v2.14.0
 
 .DEFAULT_GOAL := help
 
-.PHONY: help deps fmt fmt-check test test-race fuzz vet build check gate0-probe usb-spike wails-install wails-doctor ui-install ui-check ui-build app-build app-dev clean
+.PHONY: help deps fmt fmt-check test test-race fuzz vet build check gate0-probe usb-spike wails-install wails-doctor ui-install ui-test ui-check ui-build app-build app-dev clean
 
 help: ## Show available targets.
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-12s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -62,7 +62,10 @@ wails-doctor: ## Check local Wails build dependencies.
 ui-install: ## Install locked frontend dependencies.
 	$(NPM) --prefix frontend ci
 
-ui-check: ## Run Svelte and TypeScript diagnostics.
+ui-test: ## Run frontend behavior tests.
+	$(NPM) --prefix frontend run test
+
+ui-check: ui-test ## Run frontend tests, Svelte, and TypeScript diagnostics.
 	$(NPM) --prefix frontend run check
 
 ui-build: ## Build static frontend assets.
