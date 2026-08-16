@@ -23,7 +23,7 @@
 
 - explicit installer profiles: DBI, Awoo USB, and Goldleaf (implemented)
 - independent clean-room protocol adapters over the shared USB transport
-  (DBI and Awoo implemented; Goldleaf pending)
+  (DBI, Awoo, and Goldleaf implemented)
 - one shared host-session runner used by Wails and `usb-spike` (implemented)
 - protocol-neutral frozen source catalog with profile-owned wire projections
   (implemented)
@@ -35,7 +35,8 @@
 - Awoo USB protocol compatibility (automated evidence implemented; Awoo 1.6.2
   real-device XCI, >4 GiB NSP, Stop, cable-removal, and reconnect checks passed;
   multi-file passed; remaining format and capture evidence pending)
-- Goldleaf 0.10+ protocol compatibility with a read-only virtual catalog drive
+- Goldleaf 0.10+ read-only virtual catalog adapter (automated evidence
+  implemented; Goldleaf 1.2.0 real-device gate pending)
 - scripted protocol fixtures and separate real-device acceptance matrices
 - no automatic protocol detection on the shared `057e:3000` USB identity
 

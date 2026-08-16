@@ -35,7 +35,7 @@ func TestProfileRegistryIsTheImmutableCapabilitySourceOfTruth(t *testing.T) {
 			Transport: host.TransportUSB, SupportedExtensions: []string{".nsp"},
 			WireNamespace: host.NamespaceVirtualCatalog, FilesystemAccess: host.FilesystemReadOnly,
 			CompatibleVersions: []string{"0.10+"}, VerifiedVersions: []string{}, KnownIncompatibleVersions: []string{},
-			AdapterAvailable: false,
+			AdapterAvailable: true,
 		},
 	}
 	if !reflect.DeepEqual(profiles, want) {
@@ -111,5 +111,26 @@ func TestAwooValidationRejectsNamesThatBreakTheWireList(t *testing.T) {
 				t.Fatalf("validation errors = %#v", validationErrors)
 			}
 		})
+	}
+}
+
+func TestGoldleafValidationRejectsNamesThatEscapeTheFlatVirtualCatalog(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows rejects backslashes in filenames before catalog discovery")
+	}
+	path := filepath.Join(t.TempDir(), `back\slash.nsp`)
+	if err := os.WriteFile(path, []byte("content"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := files.BuildCatalog([]string{path}, host.AllSupportedExtensions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	validationErrors, err := host.ValidateCatalog(host.ProfileGoldleaf, catalog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(validationErrors) != 1 || validationErrors[0].Code != host.ValidationInvalidWireName {
+		t.Fatalf("validation errors = %#v", validationErrors)
 	}
 }

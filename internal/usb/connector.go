@@ -12,7 +12,10 @@ type Connector struct {
 	OnOpen  func(DeviceInfo)
 }
 
-func (c Connector) Open(context.Context) (host.Connection, error) {
+func (c Connector) Open(ctx context.Context) (host.Connection, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	connection, err := Open(c.Options)
 	if errors.Is(err, ErrDeviceNotFound) {
 		return nil, host.ErrDeviceNotFound

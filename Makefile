@@ -39,6 +39,7 @@ fuzz: ## Run short protocol codec fuzz smoke tests.
 	$(GO) test ./internal/dbi -run='^$$' -fuzz=FuzzParseRangeRequest -fuzztime=$(FUZZ_TIME)
 	$(GO) test ./internal/awoo -run='^$$' -fuzz=FuzzDecodeCommandHeader -fuzztime=$(FUZZ_TIME)
 	$(GO) test ./internal/awoo -run='^$$' -fuzz=FuzzParseRangeRequest -fuzztime=$(FUZZ_TIME)
+	$(GO) test ./internal/goldleaf -run='^$$' -fuzz=FuzzDecodeRequest -fuzztime=$(FUZZ_TIME)
 
 vet: ## Run Go static analysis.
 	$(GO) vet ./...

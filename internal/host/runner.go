@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/timonwong/nsp-carrier/internal/awoo"
 	"github.com/timonwong/nsp-carrier/internal/dbi"
 	"github.com/timonwong/nsp-carrier/internal/files"
+	"github.com/timonwong/nsp-carrier/internal/goldleaf"
 	"github.com/timonwong/nsp-carrier/internal/transport"
 )
 
@@ -50,7 +52,40 @@ type Event struct {
 	SessionID string                      `json:"sessionId"`
 	State     State                       `json:"state"`
 	Progress  map[string]ProgressSnapshot `json:"progress"`
+	Warnings  []Warning                   `json:"warnings,omitempty"`
 	Err       error                       `json:"-"`
+}
+
+type Warning struct {
+	Sequence  uint64 `json:"sequence"`
+	Operation string `json:"operation"`
+	Code      string `json:"code"`
+	Message   string `json:"message"`
+}
+
+type warningLog struct {
+	mu       sync.Mutex
+	next     uint64
+	warnings []Warning
+}
+
+func (l *warningLog) add(warning Warning) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.next++
+	warning.Sequence = l.next
+	l.warnings = append(l.warnings, warning)
+	const maxSessionWarnings = 300
+	if len(l.warnings) > maxSessionWarnings {
+		copy(l.warnings, l.warnings[len(l.warnings)-maxSessionWarnings:])
+		l.warnings = l.warnings[:maxSessionWarnings]
+	}
+}
+
+func (l *warningLog) snapshot() []Warning {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return append([]Warning(nil), l.warnings...)
 }
 
 type Connection interface {
@@ -101,9 +136,10 @@ func (r *Runner) Run(ctx context.Context, request Request) error {
 	if !profile.AdapterAvailable {
 		return fmt.Errorf("%w: %s", ErrProfileUnavailable, request.Profile)
 	}
-	if _, err := newAdapter(request.Profile, request.Catalog, nil); err != nil {
+	if _, err := newAdapter(request.Profile, request.Catalog, nil, nil); err != nil {
 		return err
 	}
+	var warnings *warningLog
 	emit := func(sessionID string, state State, progress *Progress, err error) {
 		if request.Observe == nil {
 			return
@@ -113,13 +149,18 @@ func (r *Runner) Run(ctx context.Context, request Request) error {
 			terminal := state == StateCompleted || state == StateDisconnected || state == StateFailed || state == StateStopping
 			snapshots = progress.Snapshots(terminal, state == StateFailed)
 		}
+		var warningSnapshot []Warning
+		if warnings != nil {
+			warningSnapshot = warnings.snapshot()
+		}
 		request.Observe(Event{
 			Profile: request.Profile, SessionID: sessionID, State: state,
-			Progress: snapshots, Err: err,
+			Progress: snapshots, Warnings: warningSnapshot, Err: err,
 		})
 	}
 
 	for {
+		warnings = nil
 		emit("", StateWaitingForDevice, nil, nil)
 		connection, err := request.Connector.Open(ctx)
 		if errors.Is(err, ErrDeviceNotFound) {
@@ -140,7 +181,8 @@ func (r *Runner) Run(ctx context.Context, request Request) error {
 
 		sessionID := r.newSessionID()
 		progress := NewProgress(request.Catalog, request.Profile)
-		server, err := newAdapter(request.Profile, request.Catalog, progress)
+		warnings = &warningLog{}
+		server, err := newAdapter(request.Profile, request.Catalog, progress, warnings.add)
 		if err != nil {
 			_ = connection.Close()
 			return err
@@ -173,12 +215,22 @@ type protocolAdapter interface {
 	Serve(context.Context, transport.Duplex) error
 }
 
-func newAdapter(profile ProfileID, catalog *files.Catalog, progress *Progress) (protocolAdapter, error) {
+func newAdapter(profile ProfileID, catalog *files.Catalog, progress *Progress, warn func(Warning)) (protocolAdapter, error) {
 	switch profile {
 	case ProfileDBI:
 		return dbi.NewServer(catalog, progress)
 	case ProfileAwoo:
 		return awoo.NewServer(catalog, progress)
+	case ProfileGoldleaf:
+		return goldleaf.NewServer(catalog, progress, func(protocolWarning goldleaf.Warning) {
+			if warn != nil {
+				warn(Warning{
+					Operation: protocolWarning.Operation,
+					Code:      protocolWarning.Code,
+					Message:   protocolWarning.Message,
+				})
+			}
+		})
 	default:
 		return nil, fmt.Errorf("%w: %s", ErrProfileUnavailable, profile)
 	}

@@ -9,6 +9,7 @@ import (
 	"github.com/timonwong/nsp-carrier/internal/awoo"
 	"github.com/timonwong/nsp-carrier/internal/dbi"
 	"github.com/timonwong/nsp-carrier/internal/files"
+	"github.com/timonwong/nsp-carrier/internal/goldleaf"
 )
 
 var ErrUnsupportedContent = errors.New("content is unsupported by installer profile")
@@ -70,7 +71,7 @@ var profileRegistry = []Profile{
 		ID: ProfileGoldleaf, DisplayName: "Goldleaf 0.10+", ProtocolFamily: "Goldleaf 0.10+",
 		Transport: TransportUSB, SupportedExtensions: []string{".nsp"},
 		WireNamespace: NamespaceVirtualCatalog, FilesystemAccess: FilesystemReadOnly,
-		CompatibleVersions: []string{"0.10+"},
+		CompatibleVersions: []string{"0.10+"}, AdapterAvailable: true,
 	},
 }
 
@@ -197,6 +198,8 @@ func validateWireName(profileID ProfileID, name string) error {
 		return dbi.ValidateWireName(name)
 	case ProfileAwoo:
 		return awoo.ValidateWireName(name)
+	case ProfileGoldleaf:
+		return goldleaf.ValidateWireName(name)
 	default:
 		if strings.ContainsAny(name, "\x00\r\n") {
 			return errors.New("invalid wire name")

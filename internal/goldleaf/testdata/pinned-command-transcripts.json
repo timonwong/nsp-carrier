@@ -1,0 +1,75 @@
+{
+  "references": [
+    "XorTroll/Goldleaf@5a4e86098d51ea9b9753af3cbfa7df71bf5b1234",
+    "developersu/ns-usbloader@9195fc42fc9de23837c015ad5dc0af2c3df85d73"
+  ],
+  "blockSize": 4096,
+  "zeroPadded": true,
+  "catalog": {
+    "name": "game.nsp",
+    "contentHex": "30313233343536373839"
+  },
+  "exchanges": [
+    {
+      "name": "drive-count",
+      "requestPrefixHex": "474c434901000000",
+      "responsePrefixHex": "474c434f0000000001000000"
+    },
+    {
+      "name": "drive-info",
+      "requestPrefixHex": "474c43490200000000000000",
+      "responsePrefixHex": "474c434f00000000070000005669727475616c04000000564952540a000000000000000000000000000000"
+    },
+    {
+      "name": "file-count",
+      "requestPrefixHex": "474c43490400000006000000564952543a2f",
+      "responsePrefixHex": "474c434f0000000001000000"
+    },
+    {
+      "name": "file-list-entry",
+      "requestPrefixHex": "474c43490500000006000000564952543a2f00000000",
+      "responsePrefixHex": "474c434f000000000800000067616d652e6e7370"
+    },
+    {
+      "name": "directory-count",
+      "requestPrefixHex": "474c43490600000006000000564952543a2f",
+      "responsePrefixHex": "474c434f0000000000000000"
+    },
+    {
+      "name": "directory-entry-rejected",
+      "requestPrefixHex": "474c43490700000006000000564952543a2f00000000",
+      "responsePrefixHex": "474c434ff2ba0000"
+    },
+    {
+      "name": "stat-file",
+      "requestPrefixHex": "474c4349030000000e000000564952543a2f67616d652e6e7370",
+      "responsePrefixHex": "474c434f00000000010000000a00000000000000"
+    },
+    {
+      "name": "start-read",
+      "requestPrefixHex": "474c4349080000000e000000564952543a2f67616d652e6e737001000000",
+      "responsePrefixHex": "474c434f00000000"
+    },
+    {
+      "name": "read-range",
+      "requestPrefixHex": "474c4349090000000e000000564952543a2f67616d652e6e737003000000000000000400000000000000",
+      "responsePrefixHex": "474c434f000000000400000000000000",
+      "responsePayloadHex": "33343536"
+    },
+    {
+      "name": "end-read",
+      "requestPrefixHex": "474c43490b00000001000000",
+      "responsePrefixHex": "474c434f00000000"
+    },
+    {
+      "name": "delete-rejected",
+      "requestPrefixHex": "474c43490d0000000e000000564952543a2f67616d652e6e7370",
+      "responsePrefixHex": "474c434ff1ba0000"
+    },
+    {
+      "name": "session-continues",
+      "requestPrefixHex": "474c434901000000",
+      "responsePrefixHex": "474c434f0000000001000000"
+    }
+  ]
+}

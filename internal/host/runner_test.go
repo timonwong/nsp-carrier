@@ -11,6 +11,7 @@ import (
 	"github.com/timonwong/nsp-carrier/internal/awoo"
 	"github.com/timonwong/nsp-carrier/internal/dbi"
 	"github.com/timonwong/nsp-carrier/internal/files"
+	"github.com/timonwong/nsp-carrier/internal/goldleaf"
 	"github.com/timonwong/nsp-carrier/internal/host"
 	"github.com/timonwong/nsp-carrier/internal/transport"
 )
@@ -63,6 +64,52 @@ func TestRunnerDispatchesAwooThroughTheSharedSessionLifecycle(t *testing.T) {
 	want := awoo.EncodeListHeader(0)
 	if string(link.Written()) != string(want[:]) {
 		t.Fatalf("Awoo opening handshake = %x, want %x", link.Written(), want)
+	}
+}
+
+func TestRunnerDispatchesGoldleafAndReportsReadOnlyWarnings(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "game.nsp")
+	if err := os.WriteFile(path, []byte("content"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := files.BuildCatalog([]string{path}, host.AllSupportedExtensions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	requestBlock := make([]byte, goldleaf.BlockSize)
+	copy(requestBlock[:4], "GLCI")
+	binary.LittleEndian.PutUint32(requestBlock[4:8], uint32(goldleaf.CommandDelete))
+	binary.LittleEndian.PutUint32(requestBlock[8:12], uint32(len("VIRT:/game.nsp")))
+	copy(requestBlock[12:], "VIRT:/game.nsp")
+	request := make([]byte, 0, goldleaf.BlockSize*301)
+	for range 301 {
+		request = append(request, requestBlock...)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	var disconnected host.Event
+	err = host.NewRunner().Run(ctx, host.Request{
+		Profile: host.ProfileGoldleaf, Catalog: catalog,
+		Connector: &scriptedConnector{
+			connections: []host.Connection{&memoryConnection{Memory: transport.NewMemory(request)}},
+			errors:      []error{nil, host.ErrDeviceNotFound},
+		},
+		Observe: func(event host.Event) {
+			if event.State == host.StateDisconnected {
+				disconnected = event
+				cancel()
+			}
+		},
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("Run() error = %v, want context.Canceled", err)
+	}
+	if disconnected.Profile != host.ProfileGoldleaf || len(disconnected.Warnings) != 300 {
+		t.Fatalf("disconnected event = %#v", disconnected)
+	}
+	warning := disconnected.Warnings[len(disconnected.Warnings)-1]
+	if warning.Sequence != 301 || warning.Operation != "delete" || warning.Code != "read-only-virtual-catalog" {
+		t.Fatalf("warning = %#v", warning)
 	}
 }
 

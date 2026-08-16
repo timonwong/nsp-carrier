@@ -20,7 +20,8 @@ transcript, unit, fuzz, race, and differential coverage. Awoo Installer 1.6.2
 has passed real-device XCI and greater-than-4-GiB NSP transfers, Stop, cable
 removal, fresh-session reconnect, and multi-file checks. `.nsz`, `.xcz`, and
 raw command-capture evidence remain, so it is compatible but not yet
-`Verified`. Goldleaf remains unavailable until its ordered adapter phase.
+`Verified`. The Goldleaf 0.10+ read-only `VIRT:/` adapter is implemented with
+automated protocol coverage; its Goldleaf 1.2.0 real-device gate is pending.
 
 The current UI provides:
 
@@ -35,7 +36,8 @@ The current UI provides:
 
 See [the design](docs/design.md), [DBI protocol notes](docs/dbi0-protocol.md),
 [Awoo protocol notes](docs/awoo-usb-protocol.md), [DBI Gate 0](docs/gate0.md),
-[Awoo gate](docs/awoo-gate.md), and [roadmap](docs/roadmap.md).
+[Awoo gate](docs/awoo-gate.md), [Goldleaf protocol notes](docs/goldleaf-usb-protocol.md),
+[Goldleaf gate](docs/goldleaf-gate.md), and [roadmap](docs/roadmap.md).
 
 ## Developer USB spike
 
@@ -52,12 +54,15 @@ make check
 make gate0-probe
 make usb-spike ARGS='--profile=dbi --timeout=30m --verbose -- /path/to/file.nsp /path/to/folder'
 make usb-spike ARGS='--profile=awoo --timeout=30m --verbose -- /path/to/file.nsp'
+make usb-spike ARGS='--profile=goldleaf --timeout=30m --verbose -- /path/to/file.nsp'
 ```
 
 `make gate0-probe` is DBI-specific: it builds before waiting, then claims the
 discovered bulk endpoints and exits without serving file content. Once it is
 ready, open `Install title from DBIbackend` on the Switch. Use the ordinary
 `--profile=awoo` CLI flow and [Awoo gate](docs/awoo-gate.md) for Awoo evidence.
+Use `--profile=goldleaf` and open Goldleaf's Remote PC browser for the separate
+[Goldleaf gate](docs/goldleaf-gate.md).
 
 The CLI recursively builds and freezes the catalog, waits for USB device
 `057e:3000`, discovers exactly one bulk IN/OUT endpoint pair, and serves the

@@ -32,9 +32,11 @@ func TestCLIProfileContract(t *testing.T) {
 	if err := os.WriteFile(path, []byte("content"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	goldleaf := exec.Command(binary, "--profile", "goldleaf", path)
+	goldleaf := exec.Command(binary, "--timeout", "1ns", "--reset-on-connect=false", "--profile", "goldleaf", path)
 	goldleafOutput, err := goldleaf.CombinedOutput()
-	if err == nil || !strings.Contains(string(goldleafOutput), "installer profile adapter is not implemented: goldleaf") {
+	if err == nil || strings.Contains(string(goldleafOutput), "installer profile adapter is not implemented") ||
+		!strings.Contains(string(goldleafOutput), "WaitingForDevice") ||
+		!strings.Contains(string(goldleafOutput), "context deadline exceeded") {
 		t.Fatalf("Goldleaf routing result = %v\n%s", err, goldleafOutput)
 	}
 

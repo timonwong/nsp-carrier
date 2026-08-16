@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -68,6 +69,50 @@ func TestControllerQueueSnapshotsEncodeEmptyCollectionsAsArrays(t *testing.T) {
 		return reflect.DeepEqual(left, right)
 	}) || wailsContract.ValidationErrors == nil {
 		t.Fatalf("Wails profile contract = %#v", wailsContract)
+	}
+}
+
+func TestControllerLogsEachStructuredSessionWarningOnce(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "game.nsp")
+	if err := os.WriteFile(path, []byte("content"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runnerDone := make(chan struct{})
+	controller := NewControllerWithDependencies(func(_ context.Context, _ host.ProfileID, _ *files.Catalog, update func(host.Event)) error {
+		event := host.Event{
+			Profile: host.ProfileGoldleaf, SessionID: "goldleaf-session", State: host.StateServing,
+			Warnings: []host.Warning{{
+				Sequence: 1, Operation: "delete", Code: "read-only-virtual-catalog",
+				Message: "Goldleaf delete rejected for read-only virtual catalog",
+			}},
+		}
+		update(event)
+		update(event)
+		close(runnerDone)
+		return nil
+	}, nil)
+	if _, err := controller.Add([]string{path}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := controller.SetProfile(string(host.ProfileGoldleaf)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := controller.Start(); err != nil {
+		t.Fatal(err)
+	}
+	<-runnerDone
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	controller.Shutdown(ctx)
+	snapshot := controller.Snapshot()
+	var warningLogs int
+	for _, entry := range snapshot.Logs {
+		if entry.Level == "warning" && strings.Contains(entry.Message, "delete rejected") {
+			warningLogs++
+		}
+	}
+	if warningLogs != 1 {
+		t.Fatalf("warning logs = %#v", snapshot.Logs)
 	}
 }
 
@@ -187,7 +232,7 @@ func TestControllerPersistsIdleOnlyProfileAndRevalidatesWithoutMutatingSelection
 		}
 	}
 	snapshot, err = controller.SetSelected(compressedID, false)
-	if err != nil || snapshot.CanStart || len(snapshot.ValidationErrors) != 0 {
+	if err != nil || !snapshot.CanStart || len(snapshot.ValidationErrors) != 0 {
 		t.Fatalf("revalidated snapshot = %#v, %v", snapshot, err)
 	}
 	snapshot, err = controller.SetProfile(string(host.ProfileDBI))

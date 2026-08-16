@@ -167,6 +167,8 @@ func runConfigured(ctx context.Context, config options, catalog *files.Catalog, 
 		},
 		OnOpen: func(opened usbtransport.DeviceInfo) { info = opened },
 	}
+	var warningSession string
+	var warningSequence uint64
 	err := host.NewRunner().Run(ctx, host.Request{
 		Profile: config.profile, Catalog: catalog, Connector: connector,
 		Observe: func(event host.Event) {
@@ -177,6 +179,21 @@ func runConfigured(ctx context.Context, config options, catalog *files.Catalog, 
 				fields["error"] = event.Err.Error()
 			}
 			log.event("info", "state", fields)
+			if event.SessionID != "" && event.SessionID != warningSession {
+				warningSession = event.SessionID
+				warningSequence = 0
+			}
+			for _, warning := range event.Warnings {
+				if warning.Sequence <= warningSequence {
+					continue
+				}
+				log.event("warning", "protocol_warning", map[string]any{
+					"session_id": event.SessionID, "profile": event.Profile,
+					"sequence": warning.Sequence, "operation": warning.Operation,
+					"code": warning.Code, "message": warning.Message,
+				})
+				warningSequence = warning.Sequence
+			}
 			if event.State == host.StateConnected {
 				log.event("info", "device_connected", map[string]any{
 					"session_id": event.SessionID, "profile": event.Profile,

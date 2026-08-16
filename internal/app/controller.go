@@ -79,6 +79,7 @@ type Controller struct {
 	store            settings.ProfileStore
 	profile          host.ProfileID
 	validationErrors []host.ItemValidationError
+	warningSequence  uint64
 	cancel           context.CancelFunc
 	done             chan struct{}
 }
@@ -318,6 +319,7 @@ func (c *Controller) Start() (ViewSnapshot, error) {
 	c.state = StateWaitingForDevice
 	c.sessionID = ""
 	c.lastError = ""
+	c.warningSequence = 0
 	profile := c.profile
 	capabilities, _ := host.ProfileByID(profile)
 	c.appendLogLocked("info", fmt.Sprintf("Waiting for %s with %d selected file(s)", capabilities.DisplayName, len(paths)))
@@ -379,8 +381,18 @@ func (c *Controller) handleSessionEvent(event host.Event) {
 		nextState = StateStopping
 	}
 	c.state = nextState
+	if event.SessionID != "" && event.SessionID != c.sessionID {
+		c.warningSequence = 0
+	}
 	if event.SessionID != "" {
 		c.sessionID = event.SessionID
+	}
+	for _, warning := range event.Warnings {
+		if warning.Sequence <= c.warningSequence {
+			continue
+		}
+		c.appendLogLocked("warning", warning.Message)
+		c.warningSequence = warning.Sequence
 	}
 	if nextState == StateFailed && event.Err != nil {
 		c.lastError = event.Err.Error()
