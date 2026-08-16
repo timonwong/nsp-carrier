@@ -11,6 +11,7 @@ import (
 
 	"github.com/timonwong/nsp-carrier/internal/dbi"
 	"github.com/timonwong/nsp-carrier/internal/files"
+	"github.com/timonwong/nsp-carrier/internal/host"
 	"github.com/timonwong/nsp-carrier/internal/transport"
 )
 
@@ -32,7 +33,7 @@ func TestServerListsFrozenCatalogAndExitsAcrossShortIO(t *testing.T) {
 	input := append(append(listRequest[:], listAck[:]...), exitRequest[:]...)
 	link := transport.NewMemory(input, transport.WithMaxRead(3), transport.WithMaxWrite(5))
 
-	server := dbi.NewServer(catalog)
+	server, _ := newServer(t, catalog)
 	if err := server.Serve(context.Background(), link); err != nil {
 		t.Fatalf("Serve() error = %v", err)
 	}
@@ -50,6 +51,31 @@ func TestServerListsFrozenCatalogAndExitsAcrossShortIO(t *testing.T) {
 	}
 }
 
+func TestServerRejectsDuplicateBasenamesInItsWireProjection(t *testing.T) {
+	root := t.TempDir()
+	paths := []string{
+		filepath.Join(root, "left", "game.nsp"),
+		filepath.Join(root, "right", "game.nsp"),
+	}
+	for _, path := range paths {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("content"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	catalog, err := files.BuildCatalog(paths)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = dbi.NewServer(catalog, nil)
+	if !errors.Is(err, files.ErrDuplicateBasename) {
+		t.Fatalf("NewServer() error = %v, want ErrDuplicateBasename", err)
+	}
+}
+
 func TestServerHandlesTimeoutCancellationDisconnectAndMalformedFrames(t *testing.T) {
 	emptyCatalog, err := files.BuildCatalog(nil)
 	if err != nil {
@@ -59,7 +85,8 @@ func TestServerHandlesTimeoutCancellationDisconnectAndMalformedFrames(t *testing
 	t.Run("idle timeout", func(t *testing.T) {
 		exitRequest := dbi.EncodeHeader(dbi.Header{Type: dbi.CommandTypeRequest, Command: dbi.CommandExit})
 		link := transport.NewMemory(exitRequest[:], transport.WithReadFaults(transport.ErrTimeout))
-		if err := dbi.NewServer(emptyCatalog).Serve(context.Background(), link); err != nil {
+		server, _ := newServer(t, emptyCatalog)
+		if err := server.Serve(context.Background(), link); err != nil {
 			t.Fatalf("Serve() error = %v", err)
 		}
 	})
@@ -67,21 +94,24 @@ func TestServerHandlesTimeoutCancellationDisconnectAndMalformedFrames(t *testing
 	t.Run("cancel", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
-		err := dbi.NewServer(emptyCatalog).Serve(ctx, transport.NewMemory(nil))
+		server, _ := newServer(t, emptyCatalog)
+		err := server.Serve(ctx, transport.NewMemory(nil))
 		if !errors.Is(err, context.Canceled) {
 			t.Fatalf("Serve() error = %v, want context.Canceled", err)
 		}
 	})
 
 	t.Run("disconnect", func(t *testing.T) {
-		err := dbi.NewServer(emptyCatalog).Serve(context.Background(), transport.NewMemory(nil))
+		server, _ := newServer(t, emptyCatalog)
+		err := server.Serve(context.Background(), transport.NewMemory(nil))
 		if !errors.Is(err, transport.ErrDisconnected) {
 			t.Fatalf("Serve() error = %v, want ErrDisconnected", err)
 		}
 	})
 
 	t.Run("malformed frame", func(t *testing.T) {
-		err := dbi.NewServer(emptyCatalog).Serve(context.Background(), transport.NewMemory(make([]byte, dbi.HeaderSize)))
+		server, _ := newServer(t, emptyCatalog)
+		err := server.Serve(context.Background(), transport.NewMemory(make([]byte, dbi.HeaderSize)))
 		if !errors.Is(err, dbi.ErrProtocol) {
 			t.Fatalf("Serve() error = %v, want ErrProtocol", err)
 		}
@@ -89,7 +119,8 @@ func TestServerHandlesTimeoutCancellationDisconnectAndMalformedFrames(t *testing
 
 	t.Run("unsupported command", func(t *testing.T) {
 		request := dbi.EncodeHeader(dbi.Header{Type: dbi.CommandTypeRequest, Command: dbi.CommandID(99)})
-		err := dbi.NewServer(emptyCatalog).Serve(context.Background(), transport.NewMemory(request[:]))
+		server, _ := newServer(t, emptyCatalog)
+		err := server.Serve(context.Background(), transport.NewMemory(request[:]))
 		if !errors.Is(err, dbi.ErrUnsupportedCommand) {
 			t.Fatalf("Serve() error = %v, want ErrUnsupportedCommand", err)
 		}
@@ -124,7 +155,7 @@ func TestServerServesFileRangeAndRecordsProgress(t *testing.T) {
 	input := append(append(append(request[:], detail...), finalAck[:]...), exitRequest[:]...)
 	link := transport.NewMemory(input, transport.WithMaxRead(5), transport.WithMaxWrite(2))
 
-	server := dbi.NewServer(catalog)
+	server, progress := newServer(t, catalog)
 	if err := server.Serve(context.Background(), link); err != nil {
 		t.Fatalf("Serve() error = %v", err)
 	}
@@ -145,9 +176,9 @@ func TestServerServesFileRangeAndRecordsProgress(t *testing.T) {
 		t.Fatalf("written bytes = %x, want %x", link.Written(), want)
 	}
 
-	progress, ok := server.Progress("game.nsp")
-	if !ok || progress.UniqueServedBytes != 4 || progress.WireBytes != 4 {
-		t.Fatalf("Progress() = %#v, %v", progress, ok)
+	value := progress.Snapshots(false, false)[catalog.Entries()[0].ID]
+	if value.UniqueServedBytes != 4 || value.WireBytes != 4 {
+		t.Fatalf("progress = %#v", value)
 	}
 }
 
@@ -179,7 +210,7 @@ func TestServerServesAvailableTailWhenAlignedRangeCrossesEOF(t *testing.T) {
 	input := append(append(append(request[:], detail...), finalAck[:]...), exitRequest[:]...)
 	link := transport.NewMemory(input)
 
-	server := dbi.NewServer(catalog)
+	server, progress := newServer(t, catalog)
 	if err := server.Serve(context.Background(), link); err != nil {
 		t.Fatalf("Serve() error = %v", err)
 	}
@@ -200,9 +231,9 @@ func TestServerServesAvailableTailWhenAlignedRangeCrossesEOF(t *testing.T) {
 		t.Fatalf("written bytes = %x, want %x", link.Written(), want)
 	}
 
-	progress, ok := server.Progress("game.nsp")
-	if !ok || progress.UniqueServedBytes != 2 || progress.WireBytes != 2 {
-		t.Fatalf("Progress() = %#v, %v", progress, ok)
+	value := progress.Snapshots(false, false)[catalog.Entries()[0].ID]
+	if value.UniqueServedBytes != 2 || value.WireBytes != 2 {
+		t.Fatalf("progress = %#v", value)
 	}
 }
 
@@ -247,18 +278,25 @@ func TestServerRecordsRangeRequestOrdering(t *testing.T) {
 	exit := dbi.EncodeHeader(dbi.Header{Type: dbi.CommandTypeRequest, Command: dbi.CommandExit})
 	input = append(input, exit[:]...)
 
-	server := dbi.NewServer(catalog)
+	server, progress := newServer(t, catalog)
 	if err := server.Serve(context.Background(), transport.NewMemory(input)); err != nil {
 		t.Fatalf("Serve() error = %v", err)
 	}
 
-	progress, ok := server.Progress("game.nsp")
-	if !ok {
-		t.Fatal("Progress() did not find game.nsp")
+	value := progress.Snapshots(false, false)[catalog.Entries()[0].ID]
+	if value.RangeRequests != 4 || value.NonSequentialRequests != 2 ||
+		value.BackwardRequests != 1 || value.RepeatedRequests != 1 ||
+		value.MaxRequestedOffset != 4 {
+		t.Fatalf("request ordering = %#v", value)
 	}
-	if progress.RangeRequests != 4 || progress.NonSequentialRequests != 2 ||
-		progress.BackwardRequests != 1 || progress.RepeatedRequests != 1 ||
-		progress.MaxRequestedOffset != 4 {
-		t.Fatalf("request ordering = %#v", progress)
+}
+
+func newServer(t *testing.T, catalog *files.Catalog) (*dbi.Server, *host.Progress) {
+	t.Helper()
+	progress := host.NewProgress(catalog)
+	server, err := dbi.NewServer(catalog, progress)
+	if err != nil {
+		t.Fatal(err)
 	}
+	return server, progress
 }

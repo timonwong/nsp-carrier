@@ -55,7 +55,8 @@ func TestCatalogOpenRangeReadsFrozenSource(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	reader, available, err := catalog.OpenRange("game.nsp", 3, 4)
+	entry := catalog.Entries()[0]
+	reader, available, err := catalog.OpenRange(entry.ID, 3, 4)
 	if err != nil {
 		t.Fatalf("OpenRange() error = %v", err)
 	}
@@ -82,7 +83,8 @@ func TestCatalogOpenRangeClampsAtEOFAndRejectsChangedOrPastEOFSource(t *testing.
 		t.Fatal(err)
 	}
 
-	reader, available, err := catalog.OpenRange("game.nsp", 9, 2)
+	entry := catalog.Entries()[0]
+	reader, available, err := catalog.OpenRange(entry.ID, 9, 2)
 	if err != nil {
 		t.Fatalf("tail OpenRange() error = %v", err)
 	}
@@ -90,13 +92,13 @@ func TestCatalogOpenRangeClampsAtEOFAndRejectsChangedOrPastEOFSource(t *testing.
 	if available != 1 {
 		t.Fatalf("tail OpenRange() available = %d, want 1", available)
 	}
-	if _, _, err := catalog.OpenRange("game.nsp", 11, 1); !errors.Is(err, files.ErrRangeOutOfBounds) {
+	if _, _, err := catalog.OpenRange(entry.ID, 11, 1); !errors.Is(err, files.ErrRangeOutOfBounds) {
 		t.Fatalf("out-of-bounds OpenRange() error = %v", err)
 	}
 	if err := os.WriteFile(path, []byte("changed"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := catalog.OpenRange("game.nsp", 0, 1); !errors.Is(err, files.ErrSourceChanged) {
+	if _, _, err := catalog.OpenRange(entry.ID, 0, 1); !errors.Is(err, files.ErrSourceChanged) {
 		t.Fatalf("changed-source OpenRange() error = %v", err)
 	}
 }
@@ -124,7 +126,8 @@ func TestCatalogOpenRangeSupportsOffsetsBeyondFourGiB(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	reader, available, err := catalog.OpenRange("large.xci", uint64(offset), 4)
+	entry := catalog.Entries()[0]
+	reader, available, err := catalog.OpenRange(entry.ID, uint64(offset), 4)
 	if err != nil {
 		t.Fatalf("OpenRange() error = %v", err)
 	}
@@ -141,7 +144,7 @@ func TestCatalogOpenRangeSupportsOffsetsBeyondFourGiB(t *testing.T) {
 	}
 }
 
-func TestBuildCatalogRejectsDuplicateBasenames(t *testing.T) {
+func TestFrozenCatalogKeepsDuplicateBasenamesWithDistinctSourceIdentity(t *testing.T) {
 	root := t.TempDir()
 	left := filepath.Join(root, "left")
 	right := filepath.Join(root, "right")
@@ -157,16 +160,22 @@ func TestBuildCatalogRejectsDuplicateBasenames(t *testing.T) {
 		}
 	}
 
-	_, err := files.BuildCatalog([]string{left, right})
-	if !errors.Is(err, files.ErrDuplicateBasename) {
-		t.Fatalf("BuildCatalog() error = %v, want ErrDuplicateBasename", err)
-	}
-
-	discovered, err := files.Discover([]string{left, right})
+	catalog, err := files.BuildCatalog([]string{left, right})
 	if err != nil {
-		t.Fatalf("Discover() error = %v", err)
+		t.Fatalf("BuildCatalog() error = %v", err)
 	}
-	if len(discovered) != 2 || discovered[0].Name != "game.nsp" || discovered[1].Name != "game.nsp" {
-		t.Fatalf("Discover() = %#v", discovered)
+	entries := catalog.Entries()
+	if len(entries) != 2 || entries[0].Name != "game.nsp" || entries[1].Name != "game.nsp" {
+		t.Fatalf("Entries() = %#v", entries)
+	}
+	if entries[0].ID == entries[1].ID {
+		t.Fatalf("duplicate basenames share source identity: %#v", entries)
+	}
+	for _, entry := range entries {
+		reader, _, err := catalog.OpenRange(entry.ID, 0, 7)
+		if err != nil {
+			t.Fatalf("OpenRange(%q) error = %v", entry.ID, err)
+		}
+		reader.Close()
 	}
 }

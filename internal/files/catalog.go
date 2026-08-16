@@ -39,7 +39,7 @@ type Entry struct {
 
 type Catalog struct {
 	entries []Entry
-	byName  map[string]Entry
+	byID    map[string]Entry
 }
 
 type DuplicateBasenameError struct {
@@ -160,30 +160,12 @@ func BuildCatalog(inputs []string) (*Catalog, error) {
 		return nil, err
 	}
 
-	byName := make(map[string]Entry, len(entries))
-	conflicts := make(map[string][]string)
+	byID := make(map[string]Entry, len(entries))
 	for _, entry := range entries {
-		previous, exists := byName[entry.Name]
-		if !exists {
-			byName[entry.Name] = entry
-			continue
-		}
-		if len(conflicts[entry.Name]) == 0 {
-			conflicts[entry.Name] = append(conflicts[entry.Name], previous.Path)
-		}
-		conflicts[entry.Name] = append(conflicts[entry.Name], entry.Path)
-	}
-	if len(conflicts) > 0 {
-		names := make([]string, 0, len(conflicts))
-		for name := range conflicts {
-			names = append(names, name)
-		}
-		sort.Strings(names)
-		name := names[0]
-		return nil, &DuplicateBasenameError{Name: name, Paths: conflicts[name]}
+		byID[entry.ID] = entry
 	}
 
-	return &Catalog{entries: entries, byName: byName}, nil
+	return &Catalog{entries: entries, byID: byID}, nil
 }
 
 func (c *Catalog) Entries() []Entry {
@@ -197,8 +179,8 @@ type sectionReadCloser struct {
 
 func (r *sectionReadCloser) Close() error { return r.file.Close() }
 
-func (c *Catalog) OpenRange(name string, offset uint64, size uint32) (io.ReadCloser, uint32, error) {
-	entry, ok := c.byName[name]
+func (c *Catalog) OpenRange(sourceID string, offset uint64, size uint32) (io.ReadCloser, uint32, error) {
+	entry, ok := c.byID[sourceID]
 	if !ok {
 		return nil, 0, ErrFileNotFound
 	}

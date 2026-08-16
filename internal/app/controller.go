@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/timonwong/nsp-carrier/internal/dbi"
 	"github.com/timonwong/nsp-carrier/internal/files"
+	"github.com/timonwong/nsp-carrier/internal/host"
 )
 
 var (
@@ -62,9 +62,8 @@ type ViewSnapshot struct {
 type sessionUpdate struct {
 	state     State
 	sessionID string
-	progress  map[string]dbi.ProgressSnapshot
+	progress  map[string]host.ProgressSnapshot
 	err       error
-	terminal  bool
 }
 
 type sessionRunner func(context.Context, *files.Catalog, func(sessionUpdate)) error
@@ -327,7 +326,7 @@ func (c *Controller) handleSessionUpdate(update sessionUpdate) {
 		c.lastError = update.err.Error()
 		c.appendLogLocked("error", update.err.Error())
 	}
-	c.applyProgressLocked(update.progress, update.terminal)
+	c.applyProgressLocked(update.progress)
 	if update.state == StateConnected && previousState != StateConnected {
 		c.appendLogLocked("info", "Nintendo Switch connected")
 	} else if update.state == StateServing && previousState != StateServing {
@@ -360,10 +359,10 @@ func (c *Controller) finishSession(err error) {
 	c.emit(sink, snapshot)
 }
 
-func (c *Controller) applyProgressLocked(progress map[string]dbi.ProgressSnapshot, terminal bool) {
+func (c *Controller) applyProgressLocked(progress map[string]host.ProgressSnapshot) {
 	for index := range c.items {
 		item := &c.items[index]
-		value, exists := progress[item.Name]
+		value, exists := progress[item.ID]
 		if !exists {
 			continue
 		}
@@ -371,17 +370,8 @@ func (c *Controller) applyProgressLocked(progress map[string]dbi.ProgressSnapsho
 		item.WireBytes = value.WireBytes
 		item.Progress = value.Percent
 		item.Requested = value.RangeRequests > 0
-		switch {
-		case value.TotalBytes > 0 && value.UniqueServedBytes == value.TotalBytes:
-			item.Status = "FullyServed"
-		case value.WireBytes > 0 && terminal:
-			item.Status = "Interrupted"
-		case value.WireBytes > 0:
-			item.Status = "Serving"
-		case value.RangeRequests > 0:
-			item.Status = "Requested"
-		case terminal && item.Selected:
-			item.Status = "NotRequested"
+		if value.State != "" {
+			item.Status = string(value.State)
 		}
 	}
 }

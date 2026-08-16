@@ -17,24 +17,38 @@ var (
 )
 
 type Server struct {
-	catalog  *files.Catalog
-	progress map[string]*Progress
+	catalog      *files.Catalog
+	sourceByName map[string]string
+	reporter     RangeReporter
 }
 
-func NewServer(catalog *files.Catalog) *Server {
-	progress := make(map[string]*Progress)
+type RangeReporter interface {
+	Requested(sourceID string, offset uint64, size uint32)
+	Served(sourceID string, offset uint64, size uint32) error
+}
+
+type discardReporter struct{}
+
+func (discardReporter) Requested(string, uint64, uint32)    {}
+func (discardReporter) Served(string, uint64, uint32) error { return nil }
+
+func NewServer(catalog *files.Catalog, reporter RangeReporter) (*Server, error) {
+	sourceByName := make(map[string]string)
+	pathByName := make(map[string]string)
+	if reporter == nil {
+		reporter = discardReporter{}
+	}
+	server := &Server{catalog: catalog, sourceByName: sourceByName, reporter: reporter}
 	for _, entry := range catalog.Entries() {
-		progress[entry.Name] = NewProgress(uint64(entry.Size))
+		if _, exists := sourceByName[entry.Name]; exists {
+			return nil, &files.DuplicateBasenameError{
+				Name: entry.Name, Paths: []string{pathByName[entry.Name], entry.Path},
+			}
+		}
+		sourceByName[entry.Name] = entry.ID
+		pathByName[entry.Name] = entry.Path
 	}
-	return &Server{catalog: catalog, progress: progress}
-}
-
-func (s *Server) Progress(name string) (ProgressSnapshot, bool) {
-	progress, ok := s.progress[name]
-	if !ok {
-		return ProgressSnapshot{}, false
-	}
-	return progress.Snapshot(), true
+	return server, nil
 }
 
 func (s *Server) Serve(ctx context.Context, link transport.Duplex) error {
@@ -83,12 +97,16 @@ func (s *Server) serveRange(ctx context.Context, link transport.Duplex, payloadS
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrProtocol, err)
 	}
-	reader, availableSize, err := s.catalog.OpenRange(request.Name, request.Offset, request.Size)
+	sourceID, ok := s.sourceByName[request.Name]
+	if !ok {
+		return fmt.Errorf("open range %q offset=%d size=%d: %w", request.Name, request.Offset, request.Size, files.ErrFileNotFound)
+	}
+	reader, availableSize, err := s.catalog.OpenRange(sourceID, request.Offset, request.Size)
 	if err != nil {
 		return fmt.Errorf("open range %q offset=%d size=%d: %w", request.Name, request.Offset, request.Size, err)
 	}
 	defer reader.Close()
-	s.progress[request.Name].RecordRequest(request.Offset, request.Size)
+	s.reporter.Requested(sourceID, request.Offset, request.Size)
 
 	if err := writeHeader(ctx, link, Header{
 		Type:        CommandTypeResponse,
@@ -105,7 +123,6 @@ func (s *Server) serveRange(ctx context.Context, link transport.Duplex, payloadS
 		return fmt.Errorf("%w: invalid file range acknowledgement", ErrProtocol)
 	}
 
-	progress := s.progress[request.Name]
 	const chunkSize = 1 << 20
 	buffer := make([]byte, min(uint64(availableSize), chunkSize))
 	remaining := uint64(availableSize)
@@ -118,7 +135,7 @@ func (s *Server) serveRange(ctx context.Context, link transport.Duplex, payloadS
 		}
 		written, err := writeFullCount(ctx, link, chunk)
 		if written > 0 {
-			if progressErr := progress.Record(offset, uint32(written)); progressErr != nil {
+			if progressErr := s.reporter.Served(sourceID, offset, uint32(written)); progressErr != nil {
 				return progressErr
 			}
 			offset += uint64(written)
