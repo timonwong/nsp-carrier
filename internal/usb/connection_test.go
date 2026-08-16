@@ -38,6 +38,24 @@ func TestNormalizeTransferError(t *testing.T) {
 	}
 }
 
+func TestRecoverableOpenErrorClassifiesIdentitylessClaimFailure(t *testing.T) {
+	claimErr := errors.New("failed to claim interface 0: libusb error lost by formatting")
+
+	err := recoverableOpenError(claimErr)
+
+	if !errors.Is(err, ErrDeviceUnavailable) {
+		t.Fatalf("recoverableOpenError() = %v, want ErrDeviceUnavailable", err)
+	}
+}
+
+func TestNormalizeOpenErrorClassifiesIdentifiableNoDeviceFailure(t *testing.T) {
+	err := normalizeOpenError(gousb.ErrorNoDevice)
+
+	if !errors.Is(err, ErrDeviceUnavailable) || !errors.Is(err, transport.ErrDisconnected) {
+		t.Fatalf("normalizeOpenError() = %v, want unavailable disconnected device", err)
+	}
+}
+
 func TestReadClassifiesCancelledTransferWithoutCanceledContextAsDisconnected(t *testing.T) {
 	connection := newConnection(
 		faultingInEndpoint{err: gousb.TransferCancelled},

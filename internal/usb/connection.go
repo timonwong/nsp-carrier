@@ -17,11 +17,12 @@ const (
 )
 
 var (
-	ErrDeviceNotFound  = errors.New("DBI USB device not found")
-	ErrMultipleDevices = errors.New("multiple DBI USB devices found")
-	ErrClosed          = errors.New("USB connection closed")
-	ErrTransferActive  = errors.New("USB transfer still active")
-	ErrShutdownTimeout = errors.New("USB shutdown timed out")
+	ErrDeviceNotFound    = errors.New("DBI USB device not found")
+	ErrDeviceUnavailable = errors.New("DBI USB device temporarily unavailable")
+	ErrMultipleDevices   = errors.New("multiple DBI USB devices found")
+	ErrClosed            = errors.New("USB connection closed")
+	ErrTransferActive    = errors.New("USB transfer still active")
+	ErrShutdownTimeout   = errors.New("USB shutdown timed out")
 )
 
 type OpenOptions struct {
@@ -108,7 +109,7 @@ func Open(options OpenOptions) (*Connection, error) {
 	if len(devices) == 0 {
 		_ = usbContext.Close()
 		if enumerateErr != nil {
-			return nil, enumerateErr
+			return nil, normalizeOpenError(enumerateErr)
 		}
 		return nil, ErrDeviceNotFound
 	}
@@ -120,7 +121,7 @@ func Open(options OpenOptions) (*Connection, error) {
 		if len(devices) != 1 {
 			return nil, ErrMultipleDevices
 		}
-		return nil, enumerateErr
+		return nil, normalizeOpenError(enumerateErr)
 	}
 
 	device := devices[0]
@@ -131,18 +132,18 @@ func Open(options OpenOptions) (*Connection, error) {
 	}
 	if options.ResetOnConnect {
 		if err := device.Reset(); err != nil {
-			return fail(fmt.Errorf("reset DBI device: %w", err))
+			return fail(fmt.Errorf("reset DBI device: %w", recoverableOpenError(err)))
 		}
 		time.Sleep(time.Second)
 	}
 
 	selection, err := FindBulkPair(device.Desc)
 	if err != nil {
-		return fail(err)
+		return fail(recoverableOpenError(err))
 	}
 	config, err := device.Config(selection.Config)
 	if err != nil {
-		return fail(fmt.Errorf("claim USB configuration %d: %w", selection.Config, err))
+		return fail(fmt.Errorf("claim USB configuration %d: %w", selection.Config, recoverableOpenError(err)))
 	}
 	failConfig := func(err error) (*Connection, error) {
 		_ = config.Close()
@@ -150,7 +151,7 @@ func Open(options OpenOptions) (*Connection, error) {
 	}
 	interfaceHandle, err := config.Interface(selection.Interface, selection.Alternate)
 	if err != nil {
-		return failConfig(fmt.Errorf("claim USB interface %d alternate %d: %w", selection.Interface, selection.Alternate, err))
+		return failConfig(fmt.Errorf("claim USB interface %d alternate %d: %w", selection.Interface, selection.Alternate, recoverableOpenError(err)))
 	}
 	failInterface := func(err error) (*Connection, error) {
 		interfaceHandle.Close()
@@ -158,11 +159,11 @@ func Open(options OpenOptions) (*Connection, error) {
 	}
 	in, err := interfaceHandle.InEndpoint(selection.InEndpoint)
 	if err != nil {
-		return failInterface(fmt.Errorf("open bulk IN endpoint %d: %w", selection.InEndpoint, err))
+		return failInterface(fmt.Errorf("open bulk IN endpoint %d: %w", selection.InEndpoint, recoverableOpenError(err)))
 	}
 	out, err := interfaceHandle.OutEndpoint(selection.OutEndpoint)
 	if err != nil {
-		return failInterface(fmt.Errorf("open bulk OUT endpoint %d: %w", selection.OutEndpoint, err))
+		return failInterface(fmt.Errorf("open bulk OUT endpoint %d: %w", selection.OutEndpoint, recoverableOpenError(err)))
 	}
 
 	connection := newConnection(in, out, &gousbResources{
@@ -180,6 +181,18 @@ func Open(options OpenOptions) (*Connection, error) {
 		Selection: selection,
 	}
 	return connection, nil
+}
+
+func recoverableOpenError(err error) error {
+	return fmt.Errorf("%w: %w", ErrDeviceUnavailable, normalizeTransferError(err))
+}
+
+func normalizeOpenError(err error) error {
+	normalized := normalizeTransferError(err)
+	if errors.Is(normalized, transport.ErrDisconnected) || errors.Is(normalized, transport.ErrTimeout) {
+		return fmt.Errorf("%w: %w", ErrDeviceUnavailable, normalized)
+	}
+	return normalized
 }
 
 func newConnection(in inEndpoint, out outEndpoint, resources connectionResources) *Connection {

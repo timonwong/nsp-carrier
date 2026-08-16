@@ -47,6 +47,93 @@ func TestRunnerDispatchesDBIAndOwnsServingSessionState(t *testing.T) {
 	}
 }
 
+func TestRunnerRetriesRecoverableDeviceOpenFailure(t *testing.T) {
+	catalog, err := files.BuildCatalog(nil, host.AllSupportedExtensions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	exit := dbi.EncodeHeader(dbi.Header{Type: dbi.CommandTypeRequest, Command: dbi.CommandExit})
+	var events []host.Event
+
+	err = host.NewRunner().Run(context.Background(), host.Request{
+		Profile: host.ProfileDBI,
+		Catalog: catalog,
+		Connector: &scriptedConnector{
+			connections: []host.Connection{nil, &memoryConnection{Memory: transport.NewMemory(exit[:])}},
+			errors:      []error{host.ErrDeviceUnavailable},
+		},
+		Observe: func(event host.Event) { events = append(events, event) },
+	})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	for _, event := range events {
+		if event.State == host.StateFailed {
+			t.Fatalf("events contain Failed after recoverable open error: %#v", events)
+		}
+	}
+	if events[len(events)-1].State != host.StateCompleted {
+		t.Fatalf("terminal event = %#v, want Completed", events[len(events)-1])
+	}
+}
+
+func TestRunnerFailsAfterRepeatedRecoverableDeviceOpenFailures(t *testing.T) {
+	catalog, err := files.BuildCatalog(nil, host.AllSupportedExtensions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	connector := &failingConnector{err: host.ErrDeviceUnavailable}
+	var terminal host.Event
+
+	err = host.NewRunner().Run(context.Background(), host.Request{
+		Profile:   host.ProfileDBI,
+		Catalog:   catalog,
+		Connector: connector,
+		Observe:   func(event host.Event) { terminal = event },
+	})
+	if !errors.Is(err, host.ErrDeviceUnavailable) {
+		t.Fatalf("Run() error = %v, want ErrDeviceUnavailable", err)
+	}
+	if connector.opens <= 1 || terminal.State != host.StateFailed {
+		t.Fatalf("opens = %d, terminal = %#v, want retries then Failed", connector.opens, terminal)
+	}
+}
+
+func TestRunnerResetsRecoverableOpenFailureBudgetAfterSuccessfulConnection(t *testing.T) {
+	catalog, err := files.BuildCatalog(nil, host.AllSupportedExtensions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	exit := dbi.EncodeHeader(dbi.Header{Type: dbi.CommandTypeRequest, Command: dbi.CommandExit})
+	connector := &scriptedConnector{
+		connections: []host.Connection{
+			nil,
+			&memoryConnection{Memory: transport.NewMemory(nil)},
+			nil,
+			nil,
+			&memoryConnection{Memory: transport.NewMemory(exit[:])},
+		},
+		errors: []error{
+			host.ErrDeviceUnavailable,
+			nil,
+			host.ErrDeviceUnavailable,
+			host.ErrDeviceUnavailable,
+			nil,
+		},
+	}
+	var terminal host.Event
+
+	err = host.NewRunner().Run(context.Background(), host.Request{
+		Profile:   host.ProfileDBI,
+		Catalog:   catalog,
+		Connector: connector,
+		Observe:   func(event host.Event) { terminal = event },
+	})
+	if err != nil || terminal.State != host.StateCompleted {
+		t.Fatalf("Run() error = %v, terminal = %#v, want Completed after retry budget reset", err, terminal)
+	}
+}
+
 func TestRunnerDispatchesAwooThroughTheSharedSessionLifecycle(t *testing.T) {
 	catalog, err := files.BuildCatalog(nil, host.AllSupportedExtensions())
 	if err != nil {
@@ -332,6 +419,16 @@ type scriptedConnector struct {
 	connections []host.Connection
 	errors      []error
 	index       int
+}
+
+type failingConnector struct {
+	err   error
+	opens int
+}
+
+func (c *failingConnector) Open(context.Context) (host.Connection, error) {
+	c.opens++
+	return nil, c.err
 }
 
 func (c *scriptedConnector) Open(context.Context) (host.Connection, error) {
