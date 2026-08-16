@@ -121,7 +121,7 @@
       <div class="brand-mark" aria-hidden="true"><span></span><span></span></div>
       <div>
         <h1>NSP Carrier</h1>
-        <p>DBI USB file service</p>
+        <p>Omni host for NS installers</p>
       </div>
     </div>
     <div class="titlebar-actions">
