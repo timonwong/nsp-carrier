@@ -420,8 +420,8 @@ func (c *Controller) appendLogLocked(level, message string) {
 func (c *Controller) snapshotLocked() ViewSnapshot {
 	snapshot := ViewSnapshot{
 		State: c.state, SessionID: c.sessionID, LastError: c.lastError,
-		Items:   append([]QueueItem(nil), c.items...),
-		Logs:    append([]LogEntry(nil), c.logs...),
+		Items:   append([]QueueItem{}, c.items...),
+		Logs:    append([]LogEntry{}, c.logs...),
 		CanStop: c.state != StateIdle,
 	}
 	for _, item := range c.items {

@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -10,6 +11,49 @@ import (
 
 	"github.com/timonwong/nsp-carrier/internal/files"
 )
+
+func TestControllerQueueSnapshotsEncodeEmptyCollectionsAsArrays(t *testing.T) {
+	root := t.TempDir()
+	first := filepath.Join(root, "first.nsp")
+	second := filepath.Join(root, "second.nsp")
+	for _, path := range []string{first, second} {
+		if err := os.WriteFile(path, []byte(filepath.Base(path)), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	controller := newController(func(context.Context, *files.Catalog, func(sessionUpdate)) error {
+		return errors.New("runner should not start")
+	})
+	initial := controller.Snapshot()
+	if initial.Items == nil || initial.Logs == nil {
+		t.Fatalf("initial snapshot collections must be arrays: %#v", initial)
+	}
+	snapshot, err := controller.Add([]string{first, second})
+	if err != nil {
+		t.Fatalf("Add() error = %v", err)
+	}
+
+	snapshot, err = controller.Remove([]string{snapshot.Items[0].ID})
+	if err != nil {
+		t.Fatalf("Remove(first) error = %v", err)
+	}
+	if len(snapshot.Items) != 1 || snapshot.Items[0].Name != "second.nsp" {
+		t.Fatalf("snapshot after removing first item = %#v", snapshot.Items)
+	}
+
+	snapshot, err = controller.Clear()
+	if err != nil {
+		t.Fatalf("Clear() error = %v", err)
+	}
+	encoded, err := json.Marshal(snapshot)
+	if err != nil {
+		t.Fatalf("json.Marshal() error = %v", err)
+	}
+	if string(encoded) == "" || snapshot.Items == nil || snapshot.Logs == nil {
+		t.Fatalf("empty snapshot collections must encode as arrays: %s", encoded)
+	}
+}
 
 func TestControllerKeepsConflictsVisibleAndResolvesThemBySelection(t *testing.T) {
 	root := t.TempDir()

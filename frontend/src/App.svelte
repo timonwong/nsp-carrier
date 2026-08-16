@@ -17,7 +17,7 @@
   type Theme = 'auto' | 'light' | 'dark'
 
   const snapshotEvent = 'nsp-carrier:snapshot'
-  const emptySnapshot = new app.ViewSnapshot({
+  const emptySnapshot = toViewSnapshot({
     state: 'Idle',
     sessionId: '',
     items: [],
@@ -54,10 +54,10 @@
     }
     applyTheme(theme)
     EventsOn(snapshotEvent, (next: app.ViewSnapshot) => {
-      snapshot = new app.ViewSnapshot(next)
+      snapshot = toViewSnapshot(next)
     })
     void GetSnapshot().then((next) => {
-      snapshot = next
+      snapshot = toViewSnapshot(next)
     }).catch(showError)
     return () => EventsOff(snapshotEvent)
   })
@@ -74,7 +74,7 @@
     try {
       const result = await action()
       if (result && typeof result === 'object' && 'state' in result) {
-        snapshot = new app.ViewSnapshot(result)
+        snapshot = toViewSnapshot(result)
       }
     } catch (error) {
       showError(error)
@@ -85,6 +85,13 @@
 
   function showError(error: unknown): void {
     actionError = error instanceof Error ? error.message : String(error)
+  }
+
+  function toViewSnapshot(source: unknown): app.ViewSnapshot {
+    const next = new app.ViewSnapshot(source)
+    next.items ??= []
+    next.logs ??= []
+    return next
   }
 
   function formatBytes(value: number): string {
@@ -148,7 +155,7 @@
         <button on:click={() => (search = '')} aria-label="Clear search">×</button>
       {/if}
     </label>
-    <button class="button subtle" disabled={busy || snapshot.items.length === 0} on:click={() => run(ClearQueue)}>Clear</button>
+    <button class="button subtle" disabled={busy || working || snapshot.items.length === 0} on:click={() => run(ClearQueue)}>Clear</button>
   </section>
 
   {#if actionError || snapshot.lastError}
@@ -182,8 +189,8 @@
           <h3>Drop title files here</h3>
           <p>NSP, NSZ, XCI and XCZ are supported. Folders are scanned recursively.</p>
           <div class="empty-actions">
-            <button class="button primary" on:click={() => run(ChooseFiles)}>Choose files</button>
-            <button class="button" on:click={() => run(ChooseFolder)}>Choose folder</button>
+            <button class="button primary" disabled={busy || working} on:click={() => run(ChooseFiles)}>Choose files</button>
+            <button class="button" disabled={busy || working} on:click={() => run(ChooseFolder)}>Choose folder</button>
           </div>
         </div>
       {:else}
@@ -193,7 +200,7 @@
               <input
                 type="checkbox"
                 checked={allSelected}
-                disabled={busy}
+                disabled={busy || working}
                 aria-label="Select all files"
                 on:change={(event) => run(() => SetAllSelected((event.currentTarget as HTMLInputElement).checked))}
               />
@@ -210,7 +217,7 @@
                   <input
                     type="checkbox"
                     checked={item.selected}
-                    disabled={busy}
+                    disabled={busy || working}
                     aria-label={`Select ${item.name}`}
                     on:change={(event) => run(() => SetSelected(item.id, (event.currentTarget as HTMLInputElement).checked))}
                   />
@@ -228,7 +235,7 @@
                 <div role="cell" class="size-cell">{formatBytes(item.size)}</div>
                 <div role="cell"><span class={`status status-${item.status.toLowerCase()}`}>{statusLabel(item.status)}</span></div>
                 <div role="cell" class="row-actions">
-                  <button disabled={busy} on:click={() => run(() => Remove([item.id]))} aria-label={`Remove ${item.name}`}>×</button>
+                  <button disabled={busy || working} on:click={() => run(() => Remove([item.id]))} aria-label={`Remove ${item.name}`}>×</button>
                 </div>
               </div>
             {/each}
