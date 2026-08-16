@@ -22,8 +22,10 @@ func TestNormalizeTransferError(t *testing.T) {
 		{name: "transfer timeout", err: gousb.TransferTimedOut, want: transport.ErrTimeout},
 		{name: "submit timeout", err: gousb.ErrorTimeout, want: transport.ErrTimeout},
 		{name: "stall remains distinct", err: gousb.TransferStall, want: gousb.TransferStall},
-		{name: "generic transfer error remains distinct", err: gousb.TransferError, want: gousb.TransferError},
-		{name: "pipe remains distinct", err: gousb.ErrorPipe, want: gousb.ErrorPipe},
+		{name: "generic transfer error", err: gousb.TransferError, want: transport.ErrDisconnected},
+		{name: "submit I/O error", err: gousb.ErrorIO, want: transport.ErrDisconnected},
+		{name: "submit pipe error", err: gousb.ErrorPipe, want: transport.ErrDisconnected},
+		{name: "submit other error", err: gousb.ErrorOther, want: transport.ErrDisconnected},
 	}
 
 	for _, test := range tests {
@@ -32,6 +34,18 @@ func TestNormalizeTransferError(t *testing.T) {
 				t.Fatalf("normalizeTransferError(%v) = %v, want errors.Is(_, %v)", test.err, err, test.want)
 			}
 		})
+	}
+}
+
+func TestReadClassifiesGenericTransferErrorAsDisconnected(t *testing.T) {
+	connection := newConnection(
+		faultingInEndpoint{err: gousb.TransferError},
+		nil,
+		&fakeResources{},
+	)
+
+	if _, err := connection.Read(context.Background(), make([]byte, 1)); !errors.Is(err, transport.ErrDisconnected) {
+		t.Fatalf("Read() error = %v, want ErrDisconnected", err)
 	}
 }
 
@@ -114,6 +128,14 @@ func (e *blockingInEndpoint) ReadContext(context.Context, []byte) (int, error) {
 
 type cancellableInEndpoint struct {
 	started chan struct{}
+}
+
+type faultingInEndpoint struct {
+	err error
+}
+
+func (e faultingInEndpoint) ReadContext(context.Context, []byte) (int, error) {
+	return 0, e.err
 }
 
 func (e *cancellableInEndpoint) ReadContext(ctx context.Context, _ []byte) (int, error) {
