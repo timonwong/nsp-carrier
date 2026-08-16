@@ -62,7 +62,7 @@ var profileRegistry = []Profile{
 		CompatibleVersions: []string{}, AdapterAvailable: true,
 	},
 	{
-		ID: ProfileAwoo, DisplayName: "Awoo USB", ProtocolFamily: "Awoo USB",
+		ID: ProfileAwoo, DisplayName: "Awoo", ProtocolFamily: "Awoo USB",
 		Transport: TransportUSB, SupportedExtensions: []string{".nsp", ".nsz", ".xci", ".xcz"},
 		WireNamespace: NamespaceFlatBasename, FilesystemAccess: FilesystemNone,
 		CompatibleVersions: []string{}, VerifiedVersions: []string{"1.6.2"}, AdapterAvailable: true,

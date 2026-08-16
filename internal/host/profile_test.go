@@ -24,7 +24,7 @@ func TestProfileRegistryIsTheImmutableCapabilitySourceOfTruth(t *testing.T) {
 			AdapterAvailable: true,
 		},
 		{
-			ID: host.ProfileAwoo, DisplayName: "Awoo USB", ProtocolFamily: "Awoo USB",
+			ID: host.ProfileAwoo, DisplayName: "Awoo", ProtocolFamily: "Awoo USB",
 			Transport: host.TransportUSB, SupportedExtensions: []string{".nsp", ".nsz", ".xci", ".xcz"},
 			WireNamespace: host.NamespaceFlatBasename, FilesystemAccess: host.FilesystemNone,
 			CompatibleVersions: []string{}, VerifiedVersions: []string{"1.6.2"}, KnownIncompatibleVersions: []string{},
