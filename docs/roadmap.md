@@ -33,9 +33,8 @@
   (implemented)
 - distinct compatible, verified, and known-incompatible version reporting
 - Awoo USB protocol compatibility (automated evidence implemented; Awoo 1.6.2
-  real-device XCI, >4 GiB NSP, Stop, cable-removal, and reconnect checks passed;
-  multi-file and real command differential passed; remaining format evidence
-  pending)
+  real-device NSP, NSZ, XCI, XCZ, Stop, cable-removal, reconnect, multi-file,
+  and real command differential checks passed; exact version 1.6.2 verified)
 - Goldleaf 0.10+ read-only virtual catalog adapter (automated evidence
   implemented; Goldleaf 1.2.0 browsing, >4 GiB NSP, delete rejection, Stop,
   cable-removal, fresh-session reconnect, whole-source, and multi-file checks
