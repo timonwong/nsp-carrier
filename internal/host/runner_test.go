@@ -261,3 +261,41 @@ func TestRunnerReportsProgressByStableSourceID(t *testing.T) {
 		t.Fatalf("terminal progress = %#v", terminal.Progress)
 	}
 }
+
+func TestRunnerMarksCompletedAwooRequestedRangesFullyServed(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "game.xci")
+	if err := os.WriteFile(path, []byte("0123456789"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := files.BuildCatalog([]string{path}, host.AllSupportedExtensions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	detail := make([]byte, awoo.RangeMetadataSize+len("game.xci"))
+	binary.LittleEndian.PutUint64(detail[0:8], 4)
+	binary.LittleEndian.PutUint64(detail[8:16], 3)
+	binary.LittleEndian.PutUint64(detail[16:24], uint64(len("game.xci")))
+	copy(detail[awoo.RangeMetadataSize:], "game.xci")
+	rangeRequest := awoo.EncodeCommandHeader(awoo.CommandHeader{
+		Type: awoo.CommandTypeRequest, Command: awoo.CommandFileRange, DataSize: uint64(len(detail)),
+	})
+	exit := awoo.EncodeCommandHeader(awoo.CommandHeader{Type: awoo.CommandTypeRequest, Command: awoo.CommandExit})
+	input := append(append(rangeRequest[:], detail...), exit[:]...)
+	var terminal host.Event
+
+	err = host.NewRunner().Run(context.Background(), host.Request{
+		Profile:   host.ProfileAwoo,
+		Catalog:   catalog,
+		Connector: connector(transport.NewMemory(input)),
+		Observe:   func(event host.Event) { terminal = event },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sourceID := catalog.Entries()[0].ID
+	progress := terminal.Progress[sourceID]
+	if terminal.State != host.StateCompleted || progress.State != host.FileFullyServed ||
+		progress.UniqueServedBytes != 4 || progress.WireBytes != 4 || progress.RangeRequests != 1 {
+		t.Fatalf("terminal event = %#v", terminal)
+	}
+}

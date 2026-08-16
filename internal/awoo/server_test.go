@@ -64,7 +64,7 @@ func testPinnedTranscript(t *testing.T, fixturePath string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server, err := awoo.NewServer(catalog, host.NewProgress(catalog))
+	server, err := awoo.NewServer(catalog, host.NewProgress(catalog, host.ProfileAwoo))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +95,7 @@ func TestServerMatchesPinnedListAndRangeTranscriptsAcrossShortIO(t *testing.T) {
 			exitHeader := awoo.EncodeCommandHeader(awoo.CommandHeader{Type: awoo.CommandTypeRequest, Command: awoo.CommandExit})
 			input := append(append(rangeHeader[:], payload...), exitHeader[:]...)
 			link := transport.NewMemory(input, transport.WithMaxRead(3), transport.WithMaxWrite(5))
-			progress := host.NewProgress(catalog)
+			progress := host.NewProgress(catalog, host.ProfileAwoo)
 			server, err := awoo.NewServer(catalog, progress)
 			if err != nil {
 				t.Fatal(err)
@@ -142,7 +142,7 @@ func TestServerRejectsMalformedUnknownAndOutOfBoundsRequests(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			server, err := awoo.NewServer(catalog, host.NewProgress(catalog))
+			server, err := awoo.NewServer(catalog, host.NewProgress(catalog, host.ProfileAwoo))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -161,7 +161,7 @@ func TestServerHandlesTimeoutCancellationDisconnectAndSourceChanges(t *testing.T
 	}
 	exit := awoo.EncodeCommandHeader(awoo.CommandHeader{Type: awoo.CommandTypeRequest, Command: awoo.CommandExit})
 	t.Run("idle timeout", func(t *testing.T) {
-		server, err := awoo.NewServer(emptyCatalog, host.NewProgress(emptyCatalog))
+		server, err := awoo.NewServer(emptyCatalog, host.NewProgress(emptyCatalog, host.ProfileAwoo))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -171,7 +171,7 @@ func TestServerHandlesTimeoutCancellationDisconnectAndSourceChanges(t *testing.T
 		}
 	})
 	t.Run("cancellation", func(t *testing.T) {
-		server, err := awoo.NewServer(emptyCatalog, host.NewProgress(emptyCatalog))
+		server, err := awoo.NewServer(emptyCatalog, host.NewProgress(emptyCatalog, host.ProfileAwoo))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -182,7 +182,7 @@ func TestServerHandlesTimeoutCancellationDisconnectAndSourceChanges(t *testing.T
 		}
 	})
 	t.Run("disconnect", func(t *testing.T) {
-		server, err := awoo.NewServer(emptyCatalog, host.NewProgress(emptyCatalog))
+		server, err := awoo.NewServer(emptyCatalog, host.NewProgress(emptyCatalog, host.ProfileAwoo))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -202,7 +202,7 @@ func TestServerHandlesTimeoutCancellationDisconnectAndSourceChanges(t *testing.T
 		if err := os.WriteFile(path, []byte("changed"), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		server, err := awoo.NewServer(catalog, host.NewProgress(catalog))
+		server, err := awoo.NewServer(catalog, host.NewProgress(catalog, host.ProfileAwoo))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -238,7 +238,7 @@ func TestServerServesOffsetsBeyondFourGiB(t *testing.T) {
 	payload := rangePayload("large.xci", uint64(offset), 4)
 	exit := awoo.EncodeCommandHeader(awoo.CommandHeader{Type: awoo.CommandTypeRequest, Command: awoo.CommandExit})
 	input := append(commandBytes(awoo.CommandFileRange, payload), exit[:]...)
-	server, err := awoo.NewServer(catalog, host.NewProgress(catalog))
+	server, err := awoo.NewServer(catalog, host.NewProgress(catalog, host.ProfileAwoo))
 	if err != nil {
 		t.Fatal(err)
 	}

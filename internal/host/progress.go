@@ -25,7 +25,8 @@ type interval struct{ start, end uint64 }
 
 type fileProgress struct {
 	total                 uint64
-	intervals             []interval
+	requestedIntervals    []interval
+	servedIntervals       []interval
 	wireBytes             uint64
 	rangeRequests         uint64
 	nonSequentialRequests uint64
@@ -38,16 +39,17 @@ type fileProgress struct {
 }
 
 type Progress struct {
-	mu    sync.Mutex
-	files map[string]*fileProgress
+	mu                    sync.Mutex
+	files                 map[string]*fileProgress
+	completeWhenRequested bool
 }
 
-func NewProgress(catalog *files.Catalog) *Progress {
+func NewProgress(catalog *files.Catalog, profile ProfileID) *Progress {
 	tracked := make(map[string]*fileProgress, len(catalog.Entries()))
 	for _, entry := range catalog.Entries() {
 		tracked[entry.ID] = &fileProgress{total: uint64(entry.Size)}
 	}
-	return &Progress{files: tracked}
+	return &Progress{files: tracked, completeWhenRequested: profile == ProfileAwoo}
 }
 
 func (p *Progress) Requested(sourceID string, offset uint64, size uint64) {
@@ -78,6 +80,11 @@ func (p *Progress) Requested(sourceID string, offset uint64, size uint64) {
 		value.lastRequestEnd = ^uint64(0)
 	}
 	value.hasRequest = true
+	end := value.lastRequestEnd
+	if offset < value.total {
+		end = min(end, value.total)
+		value.requestedIntervals = mergeInterval(value.requestedIntervals, interval{start: offset, end: end})
+	}
 }
 
 func (p *Progress) Served(sourceID string, offset uint64, size uint32) error {
@@ -92,10 +99,17 @@ func (p *Progress) Served(sourceID string, offset uint64, size uint32) error {
 		return ErrProgressRangeOutOfBounds
 	}
 	value.wireBytes += uint64(size)
-	merged := interval{start: offset, end: end}
-	result := make([]interval, 0, len(value.intervals)+1)
+	value.servedIntervals = mergeInterval(value.servedIntervals, interval{start: offset, end: end})
+	return nil
+}
+
+func mergeInterval(intervals []interval, merged interval) []interval {
+	if merged.start >= merged.end {
+		return intervals
+	}
+	result := make([]interval, 0, len(intervals)+1)
 	inserted := false
-	for _, current := range value.intervals {
+	for _, current := range intervals {
 		if current.end < merged.start {
 			result = append(result, current)
 			continue
@@ -114,8 +128,20 @@ func (p *Progress) Served(sourceID string, offset uint64, size uint32) error {
 	if !inserted {
 		result = append(result, merged)
 	}
-	value.intervals = result
-	return nil
+	return result
+}
+
+func intervalsCover(covering, covered []interval) bool {
+	coveringIndex := 0
+	for _, target := range covered {
+		for coveringIndex < len(covering) && covering[coveringIndex].end < target.end {
+			coveringIndex++
+		}
+		if coveringIndex >= len(covering) || covering[coveringIndex].start > target.start || covering[coveringIndex].end < target.end {
+			return false
+		}
+	}
+	return true
 }
 
 func (p *Progress) Snapshots(terminal bool, failed bool) map[string]ProgressSnapshot {
@@ -124,12 +150,16 @@ func (p *Progress) Snapshots(terminal bool, failed bool) map[string]ProgressSnap
 	result := make(map[string]ProgressSnapshot, len(p.files))
 	for sourceID, value := range p.files {
 		var unique uint64
-		for _, current := range value.intervals {
+		for _, current := range value.servedIntervals {
 			unique += current.end - current.start
+		}
+		fullyServed := unique == value.total && value.total > 0
+		if p.completeWhenRequested {
+			fullyServed = value.hasRequest && intervalsCover(value.servedIntervals, value.requestedIntervals)
 		}
 		state := FileQueued
 		switch {
-		case unique == value.total && value.total > 0:
+		case fullyServed:
 			state = FileFullyServed
 		case failed && value.hasRequest:
 			state = FileFailed

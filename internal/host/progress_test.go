@@ -19,7 +19,7 @@ func TestProgressSeparatesUniqueRangesFromWireBytesAndOwnsFileState(t *testing.T
 		t.Fatal(err)
 	}
 	sourceID := catalog.Entries()[0].ID
-	progress := host.NewProgress(catalog)
+	progress := host.NewProgress(catalog, host.ProfileDBI)
 	progress.Requested(sourceID, 20, 40)
 	for _, served := range []struct {
 		offset uint64
@@ -45,7 +45,7 @@ func TestProgressSeparatesUniqueRangesFromWireBytesAndOwnsFileState(t *testing.T
 	}
 }
 
-func TestProgressKeepsPartialReadPartialAtTerminalState(t *testing.T) {
+func TestProgressMarksEveryRequestedByteServedWithoutRequiringTheWholeSource(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "game.nsp")
 	if err := os.WriteFile(path, make([]byte, 10), 0o644); err != nil {
 		t.Fatal(err)
@@ -55,12 +55,76 @@ func TestProgressKeepsPartialReadPartialAtTerminalState(t *testing.T) {
 		t.Fatal(err)
 	}
 	sourceID := catalog.Entries()[0].ID
-	progress := host.NewProgress(catalog)
+	progress := host.NewProgress(catalog, host.ProfileAwoo)
+	progress.Requested(sourceID, 0, 2)
+	if err := progress.Served(sourceID, 0, 2); err != nil {
+		t.Fatal(err)
+	}
+	if state := progress.Snapshots(true, false)[sourceID].State; state != host.FileFullyServed {
+		t.Fatalf("terminal partial-source state = %q, want %q", state, host.FileFullyServed)
+	}
+}
+
+func TestProgressMarksAnIncompleteRequestedRangeInterrupted(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "game.nsp")
+	if err := os.WriteFile(path, make([]byte, 10), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := files.BuildCatalog([]string{path}, host.AllSupportedExtensions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	sourceID := catalog.Entries()[0].ID
+	progress := host.NewProgress(catalog, host.ProfileAwoo)
+	progress.Requested(sourceID, 0, 4)
+	if err := progress.Served(sourceID, 0, 2); err != nil {
+		t.Fatal(err)
+	}
+	if state := progress.Snapshots(true, false)[sourceID].State; state != host.FileInterrupted {
+		t.Fatalf("terminal incomplete-request state = %q, want %q", state, host.FileInterrupted)
+	}
+}
+
+func TestProgressClipsDBIAlignedTailRequestsToTheFrozenSource(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "game.nsp")
+	if err := os.WriteFile(path, make([]byte, 10), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := files.BuildCatalog([]string{path}, host.AllSupportedExtensions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	sourceID := catalog.Entries()[0].ID
+	progress := host.NewProgress(catalog, host.ProfileDBI)
+	progress.Requested(sourceID, 0, 8)
+	if err := progress.Served(sourceID, 0, 8); err != nil {
+		t.Fatal(err)
+	}
+	progress.Requested(sourceID, 8, 4)
+	if err := progress.Served(sourceID, 8, 2); err != nil {
+		t.Fatal(err)
+	}
+	if state := progress.Snapshots(true, false)[sourceID].State; state != host.FileFullyServed {
+		t.Fatalf("terminal aligned-tail state = %q, want %q", state, host.FileFullyServed)
+	}
+}
+
+func TestProgressKeepsGoldleafPartialReadsPartial(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "game.nsp")
+	if err := os.WriteFile(path, make([]byte, 10), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := files.BuildCatalog([]string{path}, host.AllSupportedExtensions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	sourceID := catalog.Entries()[0].ID
+	progress := host.NewProgress(catalog, host.ProfileGoldleaf)
 	progress.Requested(sourceID, 0, 2)
 	if err := progress.Served(sourceID, 0, 2); err != nil {
 		t.Fatal(err)
 	}
 	if state := progress.Snapshots(true, false)[sourceID].State; state != host.FileInterrupted {
-		t.Fatalf("terminal partial state = %q, want %q", state, host.FileInterrupted)
+		t.Fatalf("terminal Goldleaf partial-read state = %q, want %q", state, host.FileInterrupted)
 	}
 }

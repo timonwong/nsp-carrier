@@ -293,7 +293,7 @@ func TestServerRecordsRangeRequestOrdering(t *testing.T) {
 
 func newServer(t *testing.T, catalog *files.Catalog) (*dbi.Server, *host.Progress) {
 	t.Helper()
-	progress := host.NewProgress(catalog)
+	progress := host.NewProgress(catalog, host.ProfileDBI)
 	server, err := dbi.NewServer(catalog, progress)
 	if err != nil {
 		t.Fatal(err)

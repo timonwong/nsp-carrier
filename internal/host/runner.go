@@ -139,7 +139,7 @@ func (r *Runner) Run(ctx context.Context, request Request) error {
 		}
 
 		sessionID := r.newSessionID()
-		progress := NewProgress(request.Catalog)
+		progress := NewProgress(request.Catalog, request.Profile)
 		server, err := newAdapter(request.Profile, request.Catalog, progress)
 		if err != nil {
 			_ = connection.Close()
