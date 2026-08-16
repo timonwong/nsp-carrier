@@ -210,6 +210,10 @@ func (c *Connection) Read(ctx context.Context, destination []byte) (int, error) 
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return read, ctxErr
 	}
+	if lifetimeErr := c.lifetime.Err(); lifetimeErr != nil &&
+		(errors.Is(err, context.Canceled) || errors.Is(err, gousb.TransferCancelled)) {
+		return read, lifetimeErr
+	}
 	return read, normalizeTransferError(err)
 }
 
@@ -226,6 +230,10 @@ func (c *Connection) Write(ctx context.Context, source []byte) (int, error) {
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return written, ctxErr
 	}
+	if lifetimeErr := c.lifetime.Err(); lifetimeErr != nil &&
+		(errors.Is(err, context.Canceled) || errors.Is(err, gousb.TransferCancelled)) {
+		return written, lifetimeErr
+	}
 	return written, normalizeTransferError(err)
 }
 
@@ -233,9 +241,8 @@ func normalizeTransferError(err error) error {
 	switch {
 	case err == nil:
 		return nil
-	case errors.Is(err, gousb.TransferCancelled):
-		return context.Canceled
-	case errors.Is(err, gousb.TransferNoDevice),
+	case errors.Is(err, gousb.TransferCancelled),
+		errors.Is(err, gousb.TransferNoDevice),
 		errors.Is(err, gousb.TransferError),
 		errors.Is(err, gousb.ErrorNoDevice),
 		errors.Is(err, gousb.ErrorIO),

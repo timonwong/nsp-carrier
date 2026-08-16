@@ -18,6 +18,7 @@ func TestNormalizeTransferError(t *testing.T) {
 		want error
 	}{
 		{name: "transfer no device", err: gousb.TransferNoDevice, want: transport.ErrDisconnected},
+		{name: "spontaneous transfer cancellation", err: gousb.TransferCancelled, want: transport.ErrDisconnected},
 		{name: "submit no device", err: gousb.ErrorNoDevice, want: transport.ErrDisconnected},
 		{name: "transfer timeout", err: gousb.TransferTimedOut, want: transport.ErrTimeout},
 		{name: "submit timeout", err: gousb.ErrorTimeout, want: transport.ErrTimeout},
@@ -37,14 +38,28 @@ func TestNormalizeTransferError(t *testing.T) {
 	}
 }
 
-func TestReadClassifiesCancelledTransferAsContextCancellation(t *testing.T) {
+func TestReadClassifiesCancelledTransferWithoutCanceledContextAsDisconnected(t *testing.T) {
 	connection := newConnection(
 		faultingInEndpoint{err: gousb.TransferCancelled},
 		nil,
 		&fakeResources{},
 	)
 
-	if _, err := connection.Read(context.Background(), make([]byte, 1)); !errors.Is(err, context.Canceled) {
+	if _, err := connection.Read(context.Background(), make([]byte, 1)); !errors.Is(err, transport.ErrDisconnected) {
+		t.Fatalf("Read() error = %v, want ErrDisconnected", err)
+	}
+}
+
+func TestReadPreservesCallerCancellationWhenTransferIsCancelled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	connection := newConnection(
+		faultingInEndpoint{err: gousb.TransferCancelled},
+		nil,
+		&fakeResources{},
+	)
+
+	if _, err := connection.Read(ctx, make([]byte, 1)); !errors.Is(err, context.Canceled) {
 		t.Fatalf("Read() error = %v, want context.Canceled", err)
 	}
 }
