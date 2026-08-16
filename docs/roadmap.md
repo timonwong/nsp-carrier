@@ -36,7 +36,9 @@
   real-device XCI, >4 GiB NSP, Stop, cable-removal, and reconnect checks passed;
   multi-file passed; remaining format and capture evidence pending)
 - Goldleaf 0.10+ read-only virtual catalog adapter (automated evidence
-  implemented; Goldleaf 1.2.0 real-device gate pending)
+  implemented; Goldleaf 1.2.0 browsing, >4 GiB NSP, delete rejection, Stop,
+  cable-removal, and fresh-session reconnect checks passed; remaining mutation,
+  multi-file, whole-source, and capture evidence pending)
 - scripted protocol fixtures and separate real-device acceptance matrices
 - no automatic protocol detection on the shared `057e:3000` USB identity
 
