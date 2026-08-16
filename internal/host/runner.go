@@ -19,6 +19,7 @@ import (
 var (
 	ErrUnknownProfile     = errors.New("unknown installer profile")
 	ErrDeviceNotFound     = errors.New("installer USB device not found")
+	ErrDeviceUnavailable  = errors.New("installer USB device temporarily unavailable")
 	ErrProfileUnavailable = errors.New("installer profile adapter is not implemented")
 )
 
@@ -132,6 +133,8 @@ type Runner struct {
 	shutdownGrace time.Duration
 }
 
+const maxRecoverableOpenFailures = 3
+
 func NewRunner() *Runner {
 	return &Runner{
 		newSessionID: uuid.NewString, pollInterval: time.Second,
@@ -187,12 +190,22 @@ func (r *Runner) Run(ctx context.Context, request Request) error {
 		})
 	}
 
+	recoverableOpenFailures := 0
 	for {
 		warnings = nil
 		trace = nil
 		emit("", StateWaitingForDevice, nil, nil)
 		connection, err := request.Connector.Open(ctx)
-		if errors.Is(err, ErrDeviceNotFound) {
+		if errors.Is(err, ErrDeviceUnavailable) {
+			recoverableOpenFailures++
+			if recoverableOpenFailures >= maxRecoverableOpenFailures {
+				emit("", StateFailed, nil, err)
+				return err
+			}
+		} else if errors.Is(err, ErrDeviceNotFound) {
+			recoverableOpenFailures = 0
+		}
+		if errors.Is(err, ErrDeviceNotFound) || errors.Is(err, ErrDeviceUnavailable) {
 			timer := time.NewTimer(r.pollInterval)
 			select {
 			case <-ctx.Done():
@@ -207,6 +220,7 @@ func (r *Runner) Run(ctx context.Context, request Request) error {
 			emit("", StateFailed, nil, err)
 			return err
 		}
+		recoverableOpenFailures = 0
 
 		sessionID := r.newSessionID()
 		progress := NewProgress(request.Catalog, request.Profile)
