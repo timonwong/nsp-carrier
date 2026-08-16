@@ -7,6 +7,7 @@ import (
 	"io"
 
 	"github.com/timonwong/nsp-carrier/internal/files"
+	"github.com/timonwong/nsp-carrier/internal/protocoltrace"
 	"github.com/timonwong/nsp-carrier/internal/transport"
 )
 
@@ -31,14 +32,19 @@ type Server struct {
 	reporter     RangeReporter
 	listHeader   [16]byte
 	listPayload  []byte
+	trace        protocoltrace.Reporter
 }
 
 func NewServer(catalog *files.Catalog, reporter RangeReporter) (*Server, error) {
+	return NewServerWithTrace(catalog, reporter, nil)
+}
+
+func NewServerWithTrace(catalog *files.Catalog, reporter RangeReporter, trace protocoltrace.Reporter) (*Server, error) {
 	if reporter == nil {
 		reporter = discardReporter{}
 	}
 	server := &Server{
-		catalog: catalog, sourceByName: make(map[string]string), reporter: reporter,
+		catalog: catalog, sourceByName: make(map[string]string), reporter: reporter, trace: trace,
 	}
 	pathByName := make(map[string]string)
 	names := make([]string, 0, len(catalog.Entries()))
@@ -77,9 +83,12 @@ func (s *Server) Serve(ctx context.Context, link transport.Duplex) error {
 			if header.DataSize != 0 {
 				return fmt.Errorf("%w: exit payload size %d", ErrProtocol, header.DataSize)
 			}
+			s.report(protocoltrace.Record{
+				Direction: protocoltrace.Inbound, Operation: "exit", Command: uint32(header.Command),
+			})
 			return nil
 		case CommandFileRange, CommandFileRangeAlternative:
-			if err := s.serveRange(ctx, link, header.DataSize); err != nil {
+			if err := s.serveRange(ctx, link, header.Command, header.DataSize); err != nil {
 				return err
 			}
 		default:
@@ -92,10 +101,16 @@ func (s *Server) sendList(ctx context.Context, link transport.Duplex) error {
 	if err := transport.WriteFull(ctx, link, s.listHeader[:]); err != nil {
 		return err
 	}
-	return transport.WriteFull(ctx, link, s.listPayload)
+	if err := transport.WriteFull(ctx, link, s.listPayload); err != nil {
+		return err
+	}
+	s.report(protocoltrace.Record{
+		Direction: protocoltrace.Outbound, Operation: "file_list", PayloadBytes: uint64(len(s.listPayload)),
+	})
+	return nil
 }
 
-func (s *Server) serveRange(ctx context.Context, link transport.Duplex, payloadSize uint64) error {
+func (s *Server) serveRange(ctx context.Context, link transport.Duplex, command CommandID, payloadSize uint64) error {
 	if payloadSize < RangeMetadataSize || payloadSize > MaxCommandDataSize {
 		return fmt.Errorf("%w: range payload size %d", ErrProtocol, payloadSize)
 	}
@@ -119,6 +134,14 @@ func (s *Server) serveRange(ctx context.Context, link transport.Duplex, payloadS
 	if available != request.Size {
 		return fmt.Errorf("open range %q offset=%d size=%d: %w", request.Name, request.Offset, request.Size, files.ErrRangeOutOfBounds)
 	}
+	operation := "file_range"
+	if command == CommandFileRangeAlternative {
+		operation = "file_range_alternative"
+	}
+	s.report(protocoltrace.Record{
+		Direction: protocoltrace.Inbound, Operation: operation, Command: uint32(command),
+		PayloadBytes: payloadSize, SourceID: sourceID, Offset: request.Offset, Size: request.Size,
+	})
 	s.reporter.Requested(sourceID, request.Offset, request.Size)
 	response := EncodeCommandHeader(CommandHeader{
 		Type: CommandTypeResponse, Command: CommandFileRange, DataSize: request.Size,
@@ -148,7 +171,17 @@ func (s *Server) serveRange(ctx context.Context, link transport.Duplex, payloadS
 			return err
 		}
 	}
+	s.report(protocoltrace.Record{
+		Direction: protocoltrace.Outbound, Operation: "file_range_response", Command: uint32(CommandFileRange),
+		PayloadBytes: request.Size, SourceID: sourceID, Offset: request.Offset, Size: request.Size,
+	})
 	return nil
+}
+
+func (s *Server) report(record protocoltrace.Record) {
+	if s.trace != nil {
+		s.trace.Report(record)
+	}
 }
 
 func readCommandHeader(ctx context.Context, link transport.Duplex) (CommandHeader, error) {

@@ -21,6 +21,9 @@ func TestCLIProfileContract(t *testing.T) {
 	if !strings.Contains(string(helpOutput), `default "dbi"`) {
 		t.Fatalf("--help does not expose DBI default:\n%s", helpOutput)
 	}
+	if !strings.Contains(string(helpOutput), "-trace-protocol") {
+		t.Fatalf("--help does not expose bounded protocol tracing:\n%s", helpOutput)
+	}
 
 	unknown := exec.Command(binary, "--profile", "automatic", "game.nsp")
 	unknownOutput, err := unknown.CombinedOutput()

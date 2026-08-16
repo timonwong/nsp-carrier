@@ -12,6 +12,7 @@ import (
 	"github.com/timonwong/nsp-carrier/internal/dbi"
 	"github.com/timonwong/nsp-carrier/internal/files"
 	"github.com/timonwong/nsp-carrier/internal/goldleaf"
+	"github.com/timonwong/nsp-carrier/internal/protocoltrace"
 	"github.com/timonwong/nsp-carrier/internal/transport"
 )
 
@@ -48,12 +49,14 @@ type ProgressSnapshot struct {
 }
 
 type Event struct {
-	Profile   ProfileID                   `json:"profile"`
-	SessionID string                      `json:"sessionId"`
-	State     State                       `json:"state"`
-	Progress  map[string]ProgressSnapshot `json:"progress"`
-	Warnings  []Warning                   `json:"warnings,omitempty"`
-	Err       error                       `json:"-"`
+	Profile                ProfileID                   `json:"profile"`
+	SessionID              string                      `json:"sessionId"`
+	State                  State                       `json:"state"`
+	Progress               map[string]ProgressSnapshot `json:"progress"`
+	Warnings               []Warning                   `json:"warnings,omitempty"`
+	ProtocolTrace          []protocoltrace.Record      `json:"protocolTrace,omitempty"`
+	ProtocolTraceTruncated bool                        `json:"protocolTraceTruncated,omitempty"`
+	Err                    error                       `json:"-"`
 }
 
 // SameState reports whether two events describe the same observable session
@@ -116,10 +119,11 @@ type Connector interface {
 }
 
 type Request struct {
-	Profile   ProfileID
-	Catalog   *files.Catalog
-	Connector Connector
-	Observe   func(Event)
+	Profile       ProfileID
+	Catalog       *files.Catalog
+	Connector     Connector
+	TraceProtocol bool
+	Observe       func(Event)
 }
 
 type Runner struct {
@@ -153,10 +157,11 @@ func (r *Runner) Run(ctx context.Context, request Request) error {
 	if !profile.AdapterAvailable {
 		return fmt.Errorf("%w: %s", ErrProfileUnavailable, request.Profile)
 	}
-	if _, err := newAdapter(request.Profile, request.Catalog, nil, nil); err != nil {
+	if _, err := newAdapter(request.Profile, request.Catalog, nil, nil, nil); err != nil {
 		return err
 	}
 	var warnings *warningLog
+	var trace *protocoltrace.Buffer
 	emit := func(sessionID string, state State, progress *Progress, err error) {
 		if request.Observe == nil {
 			return
@@ -170,14 +175,21 @@ func (r *Runner) Run(ctx context.Context, request Request) error {
 		if warnings != nil {
 			warningSnapshot = warnings.snapshot()
 		}
+		var traceSnapshot []protocoltrace.Record
+		var traceTruncated bool
+		if trace != nil {
+			traceSnapshot, traceTruncated = trace.Snapshot()
+		}
 		request.Observe(Event{
 			Profile: request.Profile, SessionID: sessionID, State: state,
-			Progress: snapshots, Warnings: warningSnapshot, Err: err,
+			Progress: snapshots, Warnings: warningSnapshot,
+			ProtocolTrace: traceSnapshot, ProtocolTraceTruncated: traceTruncated, Err: err,
 		})
 	}
 
 	for {
 		warnings = nil
+		trace = nil
 		emit("", StateWaitingForDevice, nil, nil)
 		connection, err := request.Connector.Open(ctx)
 		if errors.Is(err, ErrDeviceNotFound) {
@@ -199,7 +211,14 @@ func (r *Runner) Run(ctx context.Context, request Request) error {
 		sessionID := r.newSessionID()
 		progress := NewProgress(request.Catalog, request.Profile)
 		warnings = &warningLog{}
-		server, err := newAdapter(request.Profile, request.Catalog, progress, warnings.add)
+		if request.TraceProtocol {
+			trace = &protocoltrace.Buffer{}
+		}
+		var traceReporter protocoltrace.Reporter
+		if trace != nil {
+			traceReporter = trace
+		}
+		server, err := newAdapter(request.Profile, request.Catalog, progress, warnings.add, traceReporter)
 		if err != nil {
 			_ = connection.Close()
 			return err
@@ -232,14 +251,20 @@ type protocolAdapter interface {
 	Serve(context.Context, transport.Duplex) error
 }
 
-func newAdapter(profile ProfileID, catalog *files.Catalog, progress *Progress, warn func(Warning)) (protocolAdapter, error) {
+func newAdapter(
+	profile ProfileID,
+	catalog *files.Catalog,
+	progress *Progress,
+	warn func(Warning),
+	trace protocoltrace.Reporter,
+) (protocolAdapter, error) {
 	switch profile {
 	case ProfileDBI:
 		return dbi.NewServer(catalog, progress)
 	case ProfileAwoo:
-		return awoo.NewServer(catalog, progress)
+		return awoo.NewServerWithTrace(catalog, progress, trace)
 	case ProfileGoldleaf:
-		return goldleaf.NewServer(catalog, progress, func(protocolWarning goldleaf.Warning) {
+		return goldleaf.NewServerWithTrace(catalog, progress, func(protocolWarning goldleaf.Warning) {
 			if warn != nil {
 				warn(Warning{
 					Operation: protocolWarning.Operation,
@@ -247,7 +272,7 @@ func newAdapter(profile ProfileID, catalog *files.Catalog, progress *Progress, w
 					Message:   protocolWarning.Message,
 				})
 			}
-		})
+		}, trace)
 	default:
 		return nil, fmt.Errorf("%w: %s", ErrProfileUnavailable, profile)
 	}

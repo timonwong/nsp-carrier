@@ -13,6 +13,7 @@ import (
 	"github.com/timonwong/nsp-carrier/internal/awoo"
 	"github.com/timonwong/nsp-carrier/internal/files"
 	"github.com/timonwong/nsp-carrier/internal/host"
+	"github.com/timonwong/nsp-carrier/internal/protocoltrace"
 	"github.com/timonwong/nsp-carrier/internal/transport"
 )
 
@@ -118,6 +119,49 @@ func TestServerMatchesPinnedListAndRangeTranscriptsAcrossShortIO(t *testing.T) {
 				t.Fatalf("progress = %#v", snapshot)
 			}
 		})
+	}
+}
+
+func TestServerReportsPayloadSafeCommandTrace(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "game.nsp")
+	if err := os.WriteFile(path, []byte("0123456789"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := files.BuildCatalog([]string{path}, host.AllSupportedExtensions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload := rangePayload("game.nsp", 3, 4)
+	exit := awoo.EncodeCommandHeader(awoo.CommandHeader{Type: awoo.CommandTypeRequest, Command: awoo.CommandExit})
+	input := append(commandBytes(awoo.CommandFileRangeAlternative, payload), exit[:]...)
+	var trace protocoltrace.Buffer
+	server, err := awoo.NewServerWithTrace(catalog, host.NewProgress(catalog, host.ProfileAwoo), &trace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := server.Serve(context.Background(), transport.NewMemory(input)); err != nil {
+		t.Fatal(err)
+	}
+	records, truncated := trace.Snapshot()
+	if truncated || len(records) != 4 {
+		t.Fatalf("trace = %#v, truncated=%t", records, truncated)
+	}
+	wantOperations := []string{"file_list", "file_range_alternative", "file_range_response", "exit"}
+	for index, operation := range wantOperations {
+		if records[index].Operation != operation {
+			t.Fatalf("record %d = %#v", index, records[index])
+		}
+	}
+	rangeRecord := records[1]
+	if rangeRecord.Direction != protocoltrace.Inbound || rangeRecord.Command != uint32(awoo.CommandFileRangeAlternative) ||
+		rangeRecord.SourceID != catalog.Entries()[0].ID || rangeRecord.Offset != 3 || rangeRecord.Size != 4 ||
+		rangeRecord.PayloadBytes != uint64(len(payload)) {
+		t.Fatalf("range trace = %#v", rangeRecord)
+	}
+	response := records[2]
+	if response.Direction != protocoltrace.Outbound || response.Command != uint32(awoo.CommandFileRange) ||
+		response.PayloadBytes != 4 {
+		t.Fatalf("response trace = %#v", response)
 	}
 }
 

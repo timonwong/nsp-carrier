@@ -13,6 +13,7 @@ import (
 	"github.com/timonwong/nsp-carrier/internal/files"
 	"github.com/timonwong/nsp-carrier/internal/goldleaf"
 	"github.com/timonwong/nsp-carrier/internal/host"
+	"github.com/timonwong/nsp-carrier/internal/protocoltrace"
 	"github.com/timonwong/nsp-carrier/internal/transport"
 )
 
@@ -67,6 +68,38 @@ func TestRunnerDispatchesAwooThroughTheSharedSessionLifecycle(t *testing.T) {
 	}
 }
 
+func TestRunnerExposesProtocolTraceOnlyWhenRequested(t *testing.T) {
+	catalog, err := files.BuildCatalog(nil, host.AllSupportedExtensions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	exit := awoo.EncodeCommandHeader(awoo.CommandHeader{Type: awoo.CommandTypeRequest, Command: awoo.CommandExit})
+	var terminal host.Event
+	err = host.NewRunner().Run(context.Background(), host.Request{
+		Profile: host.ProfileAwoo, Catalog: catalog, Connector: connector(transport.NewMemory(exit[:])),
+		TraceProtocol: true,
+		Observe:       func(event host.Event) { terminal = event },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if terminal.ProtocolTraceTruncated || len(terminal.ProtocolTrace) != 2 {
+		t.Fatalf("terminal trace = %#v, truncated=%t", terminal.ProtocolTrace, terminal.ProtocolTraceTruncated)
+	}
+	if terminal.ProtocolTrace[0].Operation != "file_list" || terminal.ProtocolTrace[1].Operation != "exit" {
+		t.Fatalf("terminal trace = %#v", terminal.ProtocolTrace)
+	}
+
+	terminal = host.Event{}
+	err = host.NewRunner().Run(context.Background(), host.Request{
+		Profile: host.ProfileAwoo, Catalog: catalog, Connector: connector(transport.NewMemory(exit[:])),
+		Observe: func(event host.Event) { terminal = event },
+	})
+	if err != nil || len(terminal.ProtocolTrace) != 0 {
+		t.Fatalf("disabled trace = %#v, error=%v", terminal.ProtocolTrace, err)
+	}
+}
+
 func TestRunnerDispatchesGoldleafAndReportsReadOnlyWarnings(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "game.nsp")
 	if err := os.WriteFile(path, []byte("content"), 0o644); err != nil {
@@ -110,6 +143,49 @@ func TestRunnerDispatchesGoldleafAndReportsReadOnlyWarnings(t *testing.T) {
 	warning := disconnected.Warnings[len(disconnected.Warnings)-1]
 	if warning.Sequence != 301 || warning.Operation != "delete" || warning.Code != "read-only-virtual-catalog" {
 		t.Fatalf("warning = %#v", warning)
+	}
+	if len(disconnected.ProtocolTrace) != 0 || disconnected.ProtocolTraceTruncated {
+		t.Fatalf("trace should be disabled: %#v", disconnected.ProtocolTrace)
+	}
+}
+
+func TestRunnerBoundsRequestedProtocolTrace(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "game.nsp")
+	if err := os.WriteFile(path, []byte("content"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := files.BuildCatalog([]string{path}, host.AllSupportedExtensions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	requestBlock := make([]byte, goldleaf.BlockSize)
+	copy(requestBlock[:4], "GLCI")
+	binary.LittleEndian.PutUint32(requestBlock[4:8], uint32(goldleaf.CommandGetDriveCount))
+	request := make([]byte, 0, goldleaf.BlockSize*(protocoltrace.MaxRecords+1))
+	for range protocoltrace.MaxRecords + 1 {
+		request = append(request, requestBlock...)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	var disconnected host.Event
+	err = host.NewRunner().Run(ctx, host.Request{
+		Profile: host.ProfileGoldleaf, Catalog: catalog, TraceProtocol: true,
+		Connector: &scriptedConnector{
+			connections: []host.Connection{&memoryConnection{Memory: transport.NewMemory(request)}},
+			errors:      []error{nil, host.ErrDeviceNotFound},
+		},
+		Observe: func(event host.Event) {
+			if event.State == host.StateDisconnected {
+				disconnected = event
+				cancel()
+			}
+		},
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if len(disconnected.ProtocolTrace) != protocoltrace.MaxRecords || !disconnected.ProtocolTraceTruncated {
+		t.Fatalf("trace records=%d truncated=%t", len(disconnected.ProtocolTrace), disconnected.ProtocolTraceTruncated)
 	}
 }
 

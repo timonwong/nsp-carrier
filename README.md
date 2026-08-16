@@ -61,6 +61,11 @@ make usb-spike ARGS='--profile=awoo --timeout=30m --verbose -- /path/to/file.nsp
 make usb-spike ARGS='--profile=goldleaf --timeout=30m --verbose -- /path/to/file.nsp'
 ```
 
+For bounded Awoo or Goldleaf command metadata, add `--trace-protocol`. Each
+session emits at most 300 records and then reports truncation. Records contain
+command, direction, result, source ID, and range metadata only; they never
+contain local paths, wire names, or content payloads.
+
 `make gate0-probe` is DBI-specific: it builds before waiting, then claims the
 discovered bulk endpoints and exits without serving file content. Once it is
 ready, open `Install title from DBIbackend` on the Switch. Use the ordinary

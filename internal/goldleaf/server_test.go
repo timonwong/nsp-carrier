@@ -12,6 +12,7 @@ import (
 	"github.com/timonwong/nsp-carrier/internal/files"
 	"github.com/timonwong/nsp-carrier/internal/goldleaf"
 	"github.com/timonwong/nsp-carrier/internal/host"
+	"github.com/timonwong/nsp-carrier/internal/protocoltrace"
 	"github.com/timonwong/nsp-carrier/internal/transport"
 )
 
@@ -98,6 +99,48 @@ func TestServerServesExactReadRangesAndTracksWholeSourceCompletion(t *testing.T)
 	snapshot := progress.Snapshots(false, false)[catalog.Entries()[0].ID]
 	if snapshot.State != host.FileServing || snapshot.UniqueServedBytes != 4 || snapshot.RangeRequests != 1 {
 		t.Fatalf("progress = %#v", snapshot)
+	}
+}
+
+func TestServerReportsPayloadSafeCommandTrace(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "game.nsp")
+	if err := os.WriteFile(path, []byte("0123456789"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := files.BuildCatalog([]string{path}, host.AllSupportedExtensions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := bytes.Join([][]byte{
+		requestBlock(goldleaf.CommandStartFile, stringArg("VIRT:/game.nsp"), uint32Arg(uint32(goldleaf.FileModeRead))),
+		requestBlock(goldleaf.CommandReadFile, stringArg("VIRT:/game.nsp"), uint64Arg(3), uint64Arg(4)),
+		requestBlock(goldleaf.CommandEndFile, uint32Arg(uint32(goldleaf.FileModeRead))),
+	}, nil)
+	var trace protocoltrace.Buffer
+	server, err := goldleaf.NewServerWithTrace(catalog, host.NewProgress(catalog, host.ProfileGoldleaf), nil, &trace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := server.Serve(context.Background(), transport.NewMemory(input)); !errors.Is(err, transport.ErrDisconnected) {
+		t.Fatalf("Serve() error = %v", err)
+	}
+	records, truncated := trace.Snapshot()
+	if truncated || len(records) != 6 {
+		t.Fatalf("trace = %#v, truncated=%t", records, truncated)
+	}
+	wantOperations := []string{"start_file", "start_file", "read_file", "read_file", "end_file", "end_file"}
+	for index, operation := range wantOperations {
+		if records[index].Operation != operation {
+			t.Fatalf("record %d = %#v", index, records[index])
+		}
+	}
+	if records[2].Direction != protocoltrace.Inbound || records[2].Command != uint32(goldleaf.CommandReadFile) {
+		t.Fatalf("read request trace = %#v", records[2])
+	}
+	response := records[3]
+	if response.Direction != protocoltrace.Outbound || !response.HasResult || response.ResultCode != uint32(goldleaf.ResultSuccess) ||
+		response.SourceID != catalog.Entries()[0].ID || response.Offset != 3 || response.Size != 4 || response.PayloadBytes != 4 {
+		t.Fatalf("read response trace = %#v", response)
 	}
 }
 

@@ -15,6 +15,7 @@ import (
 
 	"github.com/timonwong/nsp-carrier/internal/files"
 	"github.com/timonwong/nsp-carrier/internal/host"
+	"github.com/timonwong/nsp-carrier/internal/protocoltrace"
 	usbtransport "github.com/timonwong/nsp-carrier/internal/usb"
 )
 
@@ -23,6 +24,7 @@ type options struct {
 	verbose        bool
 	json           bool
 	probe          bool
+	traceProtocol  bool
 	resetOnConnect bool
 	profile        host.ProfileID
 }
@@ -95,7 +97,7 @@ func run(arguments []string) error {
 	log.event("info", "environment", map[string]any{
 		"go": runtime.Version(), "os": runtime.GOOS, "arch": runtime.GOARCH,
 		"gousb": "v1.1.3", "vid": "057e", "pid": "3000", "probe": config.probe,
-		"profile": config.profile,
+		"profile": config.profile, "trace_protocol": config.traceProtocol,
 	})
 	if catalog != nil {
 		for _, entry := range catalog.Entries() {
@@ -127,6 +129,7 @@ func parseOptions(arguments []string) (options, []string, error) {
 	flags.BoolVar(&config.verbose, "verbose", false, "include descriptor and local path details")
 	flags.BoolVar(&config.json, "json", false, "emit newline-delimited JSON logs")
 	flags.BoolVar(&config.probe, "probe", false, "discover and claim installer USB endpoints without serving files")
+	flags.BoolVar(&config.traceProtocol, "trace-protocol", false, "emit up to 300 payload-safe Awoo/Goldleaf protocol metadata records per session")
 	flags.BoolVar(&config.resetOnConnect, "reset-on-connect", true, "reset the installer USB device before claiming it")
 	profiles := host.Profiles()
 	profileIDs := make([]string, 0, len(profiles))
@@ -171,8 +174,11 @@ func runConfigured(ctx context.Context, config options, catalog *files.Catalog, 
 	var warningSequence uint64
 	var lastState host.Event
 	var haveLastState bool
+	var traceSession string
+	var traceSequence uint64
+	var traceTruncated bool
 	err := host.NewRunner().Run(ctx, host.Request{
-		Profile: config.profile, Catalog: catalog, Connector: connector,
+		Profile: config.profile, Catalog: catalog, Connector: connector, TraceProtocol: config.traceProtocol,
 		Observe: func(event host.Event) {
 			fields := map[string]any{
 				"session_id": event.SessionID, "state": event.State, "profile": event.Profile,
@@ -199,6 +205,39 @@ func runConfigured(ctx context.Context, config options, catalog *files.Catalog, 
 					"code": warning.Code, "message": warning.Message,
 				})
 				warningSequence = warning.Sequence
+			}
+			if event.SessionID != "" && event.SessionID != traceSession {
+				traceSession = event.SessionID
+				traceSequence = 0
+				traceTruncated = false
+			}
+			for _, record := range event.ProtocolTrace {
+				if record.Sequence <= traceSequence {
+					continue
+				}
+				fields := map[string]any{
+					"session_id": event.SessionID, "profile": event.Profile,
+					"sequence": record.Sequence, "direction": record.Direction,
+					"operation": record.Operation, "command": record.Command,
+					"payload_bytes": record.PayloadBytes,
+				}
+				if record.SourceID != "" {
+					fields["source_id"] = record.SourceID
+					fields["offset"] = record.Offset
+					fields["size"] = record.Size
+				}
+				if record.HasResult {
+					fields["result_code"] = record.ResultCode
+				}
+				log.event("info", "protocol_trace", fields)
+				traceSequence = record.Sequence
+			}
+			if event.ProtocolTraceTruncated && !traceTruncated {
+				log.event("warning", "protocol_trace_truncated", map[string]any{
+					"session_id": event.SessionID, "profile": event.Profile,
+					"limit": protocoltrace.MaxRecords,
+				})
+				traceTruncated = true
 			}
 			if event.State == host.StateConnected {
 				log.event("info", "device_connected", map[string]any{

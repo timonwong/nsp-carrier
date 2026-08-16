@@ -128,13 +128,14 @@ func (r *Request) read(size int) ([]byte, error) {
 }
 
 type Response struct {
-	block [BlockSize]byte
-	pos   int
-	err   error
+	block  [BlockSize]byte
+	pos    int
+	err    error
+	result ResultCode
 }
 
 func NewResponse(result ResultCode) *Response {
-	response := &Response{pos: 8}
+	response := &Response{pos: 8, result: result}
 	copy(response.block[0:4], []byte("GLCO"))
 	binary.LittleEndian.PutUint32(response.block[4:8], uint32(result))
 	return response

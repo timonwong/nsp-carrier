@@ -7,6 +7,7 @@ import (
 	"io"
 
 	"github.com/timonwong/nsp-carrier/internal/files"
+	"github.com/timonwong/nsp-carrier/internal/protocoltrace"
 	"github.com/timonwong/nsp-carrier/internal/transport"
 )
 
@@ -39,6 +40,7 @@ type Server struct {
 	sourceByName map[string]string
 	reporter     RangeReporter
 	warn         WarningReporter
+	trace        protocoltrace.Reporter
 	totalSize    uint64
 }
 
@@ -50,6 +52,10 @@ type wirePayload struct {
 }
 
 func NewServer(catalog *files.Catalog, reporter RangeReporter, warn WarningReporter) (*Server, error) {
+	return NewServerWithTrace(catalog, reporter, warn, nil)
+}
+
+func NewServerWithTrace(catalog *files.Catalog, reporter RangeReporter, warn WarningReporter, trace protocoltrace.Reporter) (*Server, error) {
 	if catalog == nil {
 		return nil, errors.New("Goldleaf server requires a frozen catalog")
 	}
@@ -61,7 +67,7 @@ func NewServer(catalog *files.Catalog, reporter RangeReporter, warn WarningRepor
 	}
 	server := &Server{
 		catalog: catalog, entries: catalog.Entries(), sourceByName: make(map[string]string),
-		reporter: reporter, warn: warn,
+		reporter: reporter, warn: warn, trace: trace,
 	}
 	pathByName := make(map[string]string)
 	for _, entry := range server.entries {
@@ -100,6 +106,11 @@ func (s *Server) Serve(ctx context.Context, link transport.Duplex) error {
 		if err != nil {
 			return err
 		}
+		operation := commandOperation(request.Command)
+		s.report(protocoltrace.Record{
+			Direction: protocoltrace.Inbound, Operation: operation,
+			Command: uint32(request.Command),
+		})
 		encoded, err := response.Block()
 		if err != nil {
 			return fmt.Errorf("%w: encode response: %v", ErrProtocol, err)
@@ -112,6 +123,65 @@ func (s *Server) Serve(ctx context.Context, link transport.Duplex) error {
 				return err
 			}
 		}
+		record := protocoltrace.Record{
+			Direction: protocoltrace.Outbound, Operation: operation,
+			Command:    uint32(request.Command),
+			ResultCode: uint32(response.result), HasResult: true,
+		}
+		if payload != nil {
+			record.PayloadBytes = payload.size
+			record.SourceID = payload.sourceID
+			record.Offset = payload.offset
+			record.Size = payload.size
+		}
+		s.report(record)
+	}
+}
+
+func (s *Server) report(record protocoltrace.Record) {
+	if s.trace != nil {
+		s.trace.Report(record)
+	}
+}
+
+func commandOperation(command CommandID) string {
+	switch command {
+	case CommandGetDriveCount:
+		return "get_drive_count"
+	case CommandGetDriveInfo:
+		return "get_drive_info"
+	case CommandStatPath:
+		return "stat_path"
+	case CommandGetFileCount:
+		return "get_file_count"
+	case CommandGetFile:
+		return "get_file"
+	case CommandGetDirectoryCount:
+		return "get_directory_count"
+	case CommandGetDirectory:
+		return "get_directory"
+	case CommandStartFile:
+		return "start_file"
+	case CommandReadFile:
+		return "read_file"
+	case CommandWriteFile:
+		return "write_file"
+	case CommandEndFile:
+		return "end_file"
+	case CommandCreate:
+		return "create"
+	case CommandDelete:
+		return "delete"
+	case CommandRename:
+		return "rename"
+	case CommandGetSpecialPathCount:
+		return "get_special_path_count"
+	case CommandGetSpecialPath:
+		return "get_special_path"
+	case CommandSelectFile:
+		return "select_file"
+	default:
+		return "unknown"
 	}
 }
 
