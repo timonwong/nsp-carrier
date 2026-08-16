@@ -19,13 +19,13 @@ The Awoo USB profile has an independent clean-room adapter with pinned
 transcript, unit, fuzz, race, and differential coverage. Awoo Installer 1.6.2
 has passed real-device XCI and greater-than-4-GiB NSP transfers, Stop, cable
 removal, fresh-session reconnect, and multi-file checks. `.nsz`, `.xcz`, and
-raw command-capture evidence remain, so it is compatible but not yet
-`Verified`. The Goldleaf 0.10+ read-only `VIRT:/` adapter is implemented with
+their real-device evidence remain, so it is compatible but not yet `Verified`.
+The Goldleaf 0.10+ read-only `VIRT:/` adapter is implemented with
 automated protocol coverage. Goldleaf 1.2.0 has passed real-device virtual
 catalog browsing, a greater-than-4-GiB NSP installation, read-only delete, Stop,
 fresh-session disconnect/reconnect, whole-source serving, and multi-file
-installation. Create, write, rename, and packet-differential evidence remain,
-so it is compatible but not yet `Verified`.
+installation. Create, write, and rename evidence remain, so it is compatible
+but not yet `Verified`.
 
 The current UI provides:
 

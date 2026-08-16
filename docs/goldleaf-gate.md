@@ -32,7 +32,7 @@ passed on Goldleaf 1.2.0**.
 | 8 | Complete a multi-file browsing/serving session | Pass |
 | 9 | Stop within the bounded shutdown deadline | Pass |
 | 10 | Cable removal becomes `Disconnected`; reconnect creates a fresh session without claiming resume | Pass |
-| 11 | Compare the observable exchange with the pinned behavioral references | Partial |
+| 11 | Compare the observable exchange with the pinned behavioral references | Pass |
 
 ## Observed sessions
 
@@ -72,15 +72,20 @@ passed on Goldleaf 1.2.0**.
   cancelled`, then returned to `WaitingForDevice` without exiting. Reconnecting
   was claimed as fresh session `01741089-1691-4c0f-8233-112a730ef38f`, which
   entered `Serving` without claiming resume.
+- Payload-safe bounded traces captured the real Goldleaf 1.2.0 exchange without
+  file content, wire names, or local paths. Session
+  `7b83e6b0-e02a-4d41-97d5-ba3c1b7cddbd` matched drive discovery and catalog
+  commands 1, 2, 3, 4, 5, 6, and 15 with success result 0. Session
+  `502c95de-6423-4db9-900e-d3b1e279c5ba` matched start/read/end commands 8, 9,
+  and 11, including exact payload sizes and 64-bit ranges, and matched delete
+  command 13 with read-only result `0xBAF1`. These command IDs, directions,
+  results, and payload semantics match the pinned behavioral transcripts.
 - Ctrl-C after the device reported success emitted `Stopping`, returned to
   `Idle`, and exited 0 within the bounded shutdown path.
 - Running macOS USB descriptor enumeration concurrently with the host caused
   one transient exclusive-open collision during claim. Retrying without a
   parallel enumerator claimed the same Goldleaf device immediately. Do not run
   `system_profiler` or equivalent USB enumeration during a gate claim.
-
-The real exchange interoperated with Goldleaf 1.2.0, but a packet-level
-differential against the pinned references remains pending.
 
 Do not call any Goldleaf version `Verified` until its exact version and every
 row above pass. Automated coverage establishes only implementation readiness.
