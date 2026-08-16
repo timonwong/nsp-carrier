@@ -233,11 +233,18 @@ func normalizeTransferError(err error) error {
 	switch {
 	case err == nil:
 		return nil
-	case errors.Is(err, gousb.TransferNoDevice), errors.Is(err, gousb.ErrorNoDevice):
+	case errors.Is(err, gousb.TransferNoDevice),
+		errors.Is(err, gousb.TransferError),
+		errors.Is(err, gousb.ErrorNoDevice),
+		errors.Is(err, gousb.ErrorIO),
+		errors.Is(err, gousb.ErrorPipe),
+		errors.Is(err, gousb.ErrorOther):
 		return fmt.Errorf("%w: %v", transport.ErrDisconnected, err)
 	case errors.Is(err, gousb.TransferTimedOut), errors.Is(err, gousb.ErrorTimeout):
 		return fmt.Errorf("%w: %v", transport.ErrTimeout, err)
 	default:
+		// Keep TransferStall distinct: Windows may use it for ERROR_GEN_FAILURE,
+		// but it also represents a recoverable endpoint stall.
 		return err
 	}
 }
