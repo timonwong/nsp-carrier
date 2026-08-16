@@ -34,7 +34,7 @@
 - distinct compatible, verified, and known-incompatible version reporting
 - Awoo USB protocol compatibility (automated evidence implemented; Awoo 1.6.2
   real-device XCI, >4 GiB NSP, Stop, cable-removal, and reconnect checks passed;
-  remaining format, multi-file, and capture evidence pending)
+  multi-file passed; remaining format and capture evidence pending)
 - Goldleaf 0.10+ protocol compatibility with a read-only virtual catalog drive
 - scripted protocol fixtures and separate real-device acceptance matrices
 - no automatic protocol detection on the shared `057e:3000` USB identity

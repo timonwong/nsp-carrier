@@ -25,7 +25,7 @@ Installer 1.6.2**.
 | 3 | Serve `.nsp`, `.nsz`, `.xci`, and `.xcz` selections exercised by the device | Partial | `.xci` and `.nsp` completed; `.nsz` and `.xcz` remain untested. |
 | 4 | Complete both observed range-command variants where the device emits them | Partial | Real sessions completed, but the command ID was not captured in the activity evidence; fixed automated transcripts cover IDs 1 and 2. |
 | 5 | Serve offsets beyond 4 GiB and a large range/file | Pass | A 7,111,486,912-byte NSP completed with maximum requested offset 7,110,078,912. |
-| 6 | Complete a multi-file session and device exit command | Partial | Device exit completed single-file XCI and NSP sessions; a multi-file session remains pending. |
+| 6 | Complete a multi-file session and device exit command | Pass | Two 121,040-byte Samba de Amigo DLC NSPs each reached `FullyServed`, followed by device exit and `Completed`. |
 | 7 | Stop returns within the bounded shutdown deadline | Pass | After `a58e37d`, real-device Ctrl-C emitted `Stopping`, returned to `Idle`, and exited 0 without a timeout. |
 | 8 | Cable removal becomes `Disconnected` without hang or panic | Pass | Removal after 909,120,000 XCI bytes emitted typed `Disconnected` and retained the waiting runner. |
 | 9 | Reconnect creates a fresh serving-session ID without claiming resume | Pass | Session `c33c03ba-2f0c-45d9-84b6-c5c9eeec2f69` disconnected; reconnect was claimed as fresh session `97b17d1a-e5c8-4581-9dc4-bf717f50bde3`. |
@@ -43,6 +43,9 @@ Installer 1.6.2**.
   installation success was not separately recorded.
 - Cable removal and reconnect were tested in one continuously running host.
   Reconnect did not claim resume and used a new serving-session identity.
+- A two-file session served the AiAi Accessories and AiAi Costume DLC NSPs.
+  Each file completed six range requests, including non-sequential and backward
+  access, reached `FullyServed`, and was followed by device exit.
 
 Only the exact Awoo version and matrix that pass may be called `Verified`.
 Until the remaining Partial rows pass, Awoo 1.6.2 remains protocol-family
