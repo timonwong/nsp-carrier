@@ -8,6 +8,12 @@ The host reports only USB session and file-serving state that it can observe.
 It is not an MTP implementation, a Switch-side installer, or proof that a
 title was installed successfully.
 
+![NSP Carrier desktop application](docs/assets/nsp-carrier-desktop.jpg)
+
+Representative queue and transfer-progress state:
+
+![NSP Carrier serving files with transfer progress](docs/assets/nsp-carrier-transfer-progress.png)
+
 ## Status
 
 - **DBI:** Gate 0 and the Wails USB MVP passed real-Switch validation. A
