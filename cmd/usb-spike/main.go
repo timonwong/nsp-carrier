@@ -201,16 +201,16 @@ func serveWithBoundedShutdown(ctx context.Context, server *dbi.Server, connectio
 	case <-grace.C:
 		log.event("warning", "graceful_shutdown_timeout", nil)
 	}
-	if err := connection.ForceReset(); err != nil {
-		return errors.Join(ctx.Err(), fmt.Errorf("force reset: %w", err))
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownGracePeriod)
+	defer cancel()
+	if err := connection.Shutdown(shutdownCtx); err != nil {
+		return errors.Join(ctx.Err(), fmt.Errorf("shutdown USB connection: %w", err))
 	}
-	forced := time.NewTimer(shutdownGracePeriod)
-	defer forced.Stop()
 	select {
 	case err := <-result:
 		return errors.Join(ctx.Err(), err)
-	case <-forced.C:
-		return errors.New("USB session did not stop after cancellation and device reset")
+	case <-shutdownCtx.Done():
+		return errors.New("USB session did not stop after transfer shutdown")
 	}
 }
 
