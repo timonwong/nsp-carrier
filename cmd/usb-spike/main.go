@@ -6,17 +6,16 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"os/signal"
 	"runtime"
 	"syscall"
 	"time"
 
-	"github.com/google/gousb"
 	"github.com/timonwong/nsp-carrier/internal/app"
 	"github.com/timonwong/nsp-carrier/internal/dbi"
 	"github.com/timonwong/nsp-carrier/internal/files"
+	"github.com/timonwong/nsp-carrier/internal/transport"
 	usbtransport "github.com/timonwong/nsp-carrier/internal/usb"
 )
 
@@ -255,7 +254,7 @@ func logProgress(server *dbi.Server, catalog *files.Catalog, sessionID string, l
 }
 
 func isDisconnect(err error) bool {
-	return errors.Is(err, io.EOF) || errors.Is(err, gousb.ErrorNoDevice)
+	return errors.Is(err, transport.ErrDisconnected)
 }
 
 func debugLevel(verbose bool) int {

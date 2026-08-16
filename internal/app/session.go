@@ -4,12 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"time"
 
-	"github.com/google/gousb"
 	"github.com/timonwong/nsp-carrier/internal/dbi"
 	"github.com/timonwong/nsp-carrier/internal/files"
+	"github.com/timonwong/nsp-carrier/internal/transport"
 	usbtransport "github.com/timonwong/nsp-carrier/internal/usb"
 )
 
@@ -118,5 +117,5 @@ func collectProgress(server *dbi.Server, catalog *files.Catalog) map[string]dbi.
 }
 
 func isDisconnect(err error) bool {
-	return errors.Is(err, io.EOF) || errors.Is(err, gousb.ErrorNoDevice)
+	return errors.Is(err, transport.ErrDisconnected)
 }

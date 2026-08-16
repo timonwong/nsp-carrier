@@ -3,6 +3,8 @@ package transport
 import (
 	"bytes"
 	"context"
+	"errors"
+	"io"
 	"sync"
 )
 
@@ -51,7 +53,11 @@ func (m *Memory) Read(ctx context.Context, destination []byte) (int, error) {
 	if m.maxRead > 0 && len(destination) > m.maxRead {
 		destination = destination[:m.maxRead]
 	}
-	return m.input.Read(destination)
+	read, err := m.input.Read(destination)
+	if errors.Is(err, io.EOF) {
+		return read, ErrDisconnected
+	}
+	return read, err
 }
 
 func (m *Memory) Write(ctx context.Context, source []byte) (int, error) {
