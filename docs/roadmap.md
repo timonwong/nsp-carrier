@@ -6,16 +6,17 @@
 - scripted fake transport and automated verification
 - retained `cmd/usb-spike` diagnostics CLI
 - gousb/libusb adapter on Apple Silicon macOS
-- real-Switch acceptance matrix
+- real-Switch acceptance matrix (passed 2026-08-16)
 
 ## USB MVP after Gate 0
 
 - Wails v2.14 with Svelte 5 and TypeScript (implemented)
 - English macOS utility UI (implemented)
 - queue, selection, search, progress, logs, typed errors, Start/Stop
-  (implemented; real-device UI session still to be exercised)
+  (implemented; real-Switch full transfer passed 2026-08-16)
 - Light/Dark/Auto theme (implemented)
-- deliberate cable-removal validation (still pending)
+- deliberate cable-removal and reconnect validation (passed 2026-08-16;
+  reconnect starts a fresh DBI session and does not resume an interrupted install)
 - no public packaging yet
 
 ## Deferred HTTP

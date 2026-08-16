@@ -4,6 +4,9 @@ Gate 0 determines whether Go + gousb/libusb is a viable USB core on the
 development Apple Silicon Mac. Wails UI work cannot begin until every required
 item passes on a real Switch in DBI's `Install title from DBIbackend` mode.
 
+Status on 2026-08-16: **Pass**. Every hardware acceptance row has passed, and
+the Wails UI has completed a separate real-Switch full-transfer check.
+
 ## Baseline environment
 
 - OS: macOS 26.5.2 (`darwin/arm64`)
@@ -33,8 +36,8 @@ Status on 2026-08-15: **Pass** on the baseline development Mac.
 - `otool -L` confirmed dynamic linkage to Homebrew
   `/opt/homebrew/opt/libusb/lib/libusb-1.0.0.dylib`.
 
-This status satisfies only the automated prerequisite. It does not change any
-hardware row below from Pending.
+This automated status satisfied only the prerequisite; the hardware results
+below are recorded separately.
 
 ## Hardware acceptance matrix
 
@@ -54,7 +57,7 @@ Record Pass/Fail, evidence, and observed errors for every item:
 | 6 | Serve a file larger than 4 GiB using 64-bit offsets | Pass | 2026-08-15: fully served a 7,111,486,912-byte NSP; unique progress reached the full size, proving offsets beyond 4 GiB. |
 | 7 | Sustain a complete large-file transfer | Pass | 2026-08-15: DBI installed the 7.11 GB NSP successfully; host reported `FullyServed` with 7,111,486,912 unique bytes and 7,111,502,736 wire bytes. |
 | 8 | Stop returns within the bounded timeout | Pass | 2026-08-15: Ctrl-C cancelled the active XCI session and returned to `Idle` in under one second. |
-| 9 | Cable removal does not hang or panic | Pending | |
+| 9 | Cable removal does not hang or panic | Pass | 2026-08-16: during an active Wails transfer, removing the cable moved the UI to `Disconnected` without a hang or panic. Reconnecting reclaimed the device and returned the host to `Serving`. DBI correctly reported `Transfer Interrupted`; it requires returning with `B` and starting a fresh session rather than resuming the interrupted install. |
 | 10 | Reconnect starts a fresh working session | Pass | 2026-08-15: after ending the stale reset-on-connect session, a new no-reset session claimed the device, listed the NSP, and completed installation. |
 | 11 | Handle DBI EXIT | Pass | 2026-08-15: leaving the DBI file list with a second `B` produced host `session_completed` and `Idle`. |
 | 12 | Match the original Python backend on the same device | Pass | 2026-08-15: classic Python backend commit `ba104f17` reproduced the same XCI behavior on the same Switch and file: transfer completed, then DBI remained in its device-side installation phase. This differential rules out the Go host implementation as the cause of that XCI-specific stall. |
@@ -87,6 +90,12 @@ Record Pass/Fail, evidence, and observed errors for every item:
   Every file reached host-side `FullyServed`; the new request-order telemetry
   observed non-sequential and backward ranges for every file. DBI then sent
   `EXIT`, and the host returned to `Idle`.
+- 2026-08-16: the Wails UI completed a full transfer on the real Switch. In a
+  separate active transfer, cable removal produced host `Disconnected` without
+  a hang or panic. Reconnecting returned the host to `Serving`, while DBI kept
+  the interrupted install at `Transfer Interrupted` until the user pressed
+  `B`. This is expected: reconnect starts a fresh DBI session and does not
+  provide interrupted-install resume semantics.
 
 ## Decision
 
@@ -94,9 +103,12 @@ Record Pass/Fail, evidence, and observed errors for every item:
 - **Fail:** keep work in protocol/USB core, record the exact failure, and do
   not initialize the UI as a substitute for transport feasibility.
 
+Final result on 2026-08-16: **Pass**. All twelve hardware rows pass, and the
+separate Wails UI full-transfer validation also passes.
+
 Real test content remains local and ignored by Git. `Completed` in logs means
 only host-side session completion.
 
 On 2026-08-15 the user explicitly deferred row 9 and requested that Wails UI
-work begin. This changes implementation order, not the acceptance result: row
-9 remains Pending, and the USB MVP is not complete until it is exercised.
+work begin. The deferred cable-removal row and the Wails UI full-transfer check
+were both completed on 2026-08-16, closing Gate 0 and the USB MVP validation.

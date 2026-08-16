@@ -9,10 +9,10 @@ file-serving state.
 
 ## Current phase
 
-The protocol and macOS USB path have passed real-device LIST, range, large-file,
-multi-file, reconnect, Stop, EXIT, and upstream-differential checks. The Wails
-USB MVP is now in progress. The deliberate cable-removal row remains pending
-and must pass before the USB MVP is declared complete.
+Gate 0 and the Wails USB MVP have passed real-Switch validation. The protocol,
+macOS USB path, and desktop UI have completed LIST, range, large-file,
+multi-file, reconnect, Stop, EXIT, upstream-differential, full UI transfer, and
+deliberate cable-removal checks. Public packaging and signing remain deferred.
 
 The current UI provides:
 
