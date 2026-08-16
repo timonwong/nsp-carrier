@@ -5,19 +5,27 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
 
 func TestCLIProfileContract(t *testing.T) {
-	binary := filepath.Join(t.TempDir(), "usb-spike")
+	binaryName := "usb-spike"
+	if runtime.GOOS == "windows" {
+		binaryName += ".exe"
+	}
+	binary := filepath.Join(t.TempDir(), binaryName)
 	build := exec.Command("go", "build", "-o", binary, ".")
 	if output, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build usb-spike: %v\n%s", err, output)
 	}
 
 	help := exec.Command(binary, "--help")
-	helpOutput, _ := help.CombinedOutput()
+	helpOutput, err := help.CombinedOutput()
+	if err != nil && len(helpOutput) == 0 {
+		t.Fatalf("run --help: %v\n%s", err, helpOutput)
+	}
 	if !strings.Contains(string(helpOutput), `default "dbi"`) {
 		t.Fatalf("--help does not expose DBI default:\n%s", helpOutput)
 	}
