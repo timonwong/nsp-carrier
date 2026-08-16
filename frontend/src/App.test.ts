@@ -1,8 +1,8 @@
-import {cleanup, render, screen, waitFor} from '@testing-library/svelte'
+import {cleanup, fireEvent, render, screen, waitFor} from '@testing-library/svelte'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 
 import App from './App.svelte'
-import {GetSnapshot} from '../wailsjs/go/main/DesktopApp'
+import {GetSnapshot, SetProfile} from '../wailsjs/go/main/DesktopApp'
 import {EventsOn} from '../wailsjs/runtime/runtime'
 
 vi.mock('../wailsjs/go/main/DesktopApp', () => ({
@@ -36,18 +36,24 @@ const baseSnapshot = {
 
 describe('installer profile UI', () => {
   beforeEach(() => {
+    vi.clearAllMocks()
     vi.mocked(GetSnapshot).mockResolvedValue(baseSnapshot as never)
     vi.mocked(EventsOn).mockReset()
+    localStorage.clear()
   })
   afterEach(() => cleanup())
 
   it('renders backend-provided profiles and capabilities without a frontend format matrix', async () => {
     render(App)
-    const selector = await screen.findByRole('combobox', {name: 'Installer profile'})
-    expect(await screen.findByRole('option', {name: 'Backend DBI'})).toBeTruthy()
-    expect(screen.getByRole('option', {name: 'Backend Goldleaf'})).toBeTruthy()
-    expect((selector as HTMLSelectElement).disabled).toBe(false)
+    expect(await screen.findByRole('group', {name: 'Installer profile'})).toBeTruthy()
+    const dbi = await screen.findByRole('button', {name: 'Backend DBI'})
+    const goldleaf = screen.getByRole('button', {name: 'Backend Goldleaf'})
+    expect(dbi.getAttribute('aria-pressed')).toBe('false')
+    expect(goldleaf.getAttribute('aria-pressed')).toBe('true')
+    expect((dbi as HTMLButtonElement).disabled).toBe(false)
     expect(await screen.findByText(/FOO are eligible for Backend Goldleaf/)).toBeTruthy()
+    await fireEvent.click(dbi)
+    expect(SetProfile).toHaveBeenCalledWith('dbi')
   })
 
   it('disables profile mutation while busy', async () => {
@@ -57,9 +63,45 @@ describe('installer profile UI', () => {
       return () => {}
     })
     render(App)
-    const selector = await screen.findByRole('combobox', {name: 'Installer profile'})
+    const dbi = await screen.findByRole('button', {name: 'Backend DBI'})
+    const goldleaf = screen.getByRole('button', {name: 'Backend Goldleaf'})
     sink?.({...baseSnapshot, state: 'Serving', sessionId: 'session-1'})
-    await waitFor(() => expect((selector as HTMLSelectElement).disabled).toBe(true))
+    await waitFor(() => expect((dbi as HTMLButtonElement).disabled).toBe(true))
+    expect((goldleaf as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('uses a compact theme menu and persists the selected appearance', async () => {
+    render(App)
+    const trigger = await screen.findByRole('button', {name: 'Change theme'})
+    await fireEvent.click(trigger)
+    expect(screen.getByRole('menuitemradio', {name: 'System'}).getAttribute('aria-checked')).toBe('true')
+    await fireEvent.click(screen.getByRole('menuitemradio', {name: 'Dark'}))
+    expect(document.documentElement.dataset.theme).toBe('dark')
+    expect(localStorage.getItem('nsp-carrier-theme')).toBe('dark')
+  })
+
+  it('separates session state from the current serving action', async () => {
+    let sink: ((snapshot: unknown) => void) | undefined
+    vi.mocked(EventsOn).mockImplementation((_event: string, callback: (...data: any[]) => void) => {
+      sink = (snapshot: unknown) => callback(snapshot)
+      return () => {}
+    })
+    render(App)
+    await screen.findByRole('button', {name: 'Backend Goldleaf'})
+    sink?.({
+      ...baseSnapshot,
+      state: 'Serving', sessionId: 'session-1', canStop: true,
+      items: [{
+        id: 'source-1', name: 'demo.nsp', path: '/selected/demo.nsp', size: 10,
+        selected: true, conflict: false, status: 'Serving', uniqueServedBytes: 4,
+        wireBytes: 4, progress: 40, requested: true, validationErrors: [],
+      }],
+      selectedCount: 1, selectedBytes: 10, requestedBytes: 10, uniqueServedBytes: 4,
+    })
+    expect(await screen.findByText('Serving demo.nsp')).toBeTruthy()
+    expect(screen.getByText('Serving', {selector: '.state-pill'})).toBeTruthy()
+    expect(screen.getByText('Host status only')).toBeTruthy()
+    expect(screen.getByText('Fully Served ≠ installed. Compatibility ≠ verified version.')).toBeTruthy()
   })
 
   it('shows item-specific validation without deselecting the file', async () => {
