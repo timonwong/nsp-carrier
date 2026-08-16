@@ -8,6 +8,7 @@ import (
 )
 
 var ErrInvalidRangeRequest = errors.New("invalid DBI0 file range request")
+var ErrInvalidWireName = errors.New("invalid DBI0 wire name")
 
 const (
 	MaxRequestPayloadSize = 64 << 10
@@ -18,6 +19,14 @@ type RangeRequest struct {
 	Size   uint32
 	Offset uint64
 	Name   string
+}
+
+func ValidateWireName(name string) error {
+	if len(name) == 0 || len(name) > MaxBasenameSize || !utf8.ValidString(name) ||
+		name == "." || name == ".." || strings.ContainsAny(name, "\x00\r\n/\\") {
+		return ErrInvalidWireName
+	}
+	return nil
 }
 
 func ParseRangeRequest(payload []byte) (RangeRequest, error) {
@@ -32,9 +41,7 @@ func ParseRangeRequest(payload []byte) (RangeRequest, error) {
 
 	nameBytes := payload[16:]
 	name := string(nameBytes)
-	if len(nameBytes) == 0 || len(nameBytes) > MaxBasenameSize ||
-		!utf8.Valid(nameBytes) || name == "." || name == ".." ||
-		strings.ContainsAny(name, "\x00/\\") {
+	if ValidateWireName(name) != nil {
 		return RangeRequest{}, ErrInvalidRangeRequest
 	}
 

@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/timonwong/nsp-carrier/internal/awoo"
+	"github.com/timonwong/nsp-carrier/internal/dbi"
 	"github.com/timonwong/nsp-carrier/internal/files"
 )
 
@@ -62,7 +64,7 @@ var profileRegistry = []Profile{
 		ID: ProfileAwoo, DisplayName: "Awoo USB", ProtocolFamily: "Awoo USB",
 		Transport: TransportUSB, SupportedExtensions: []string{".nsp", ".nsz", ".xci", ".xcz"},
 		WireNamespace: NamespaceFlatBasename, FilesystemAccess: FilesystemNone,
-		CompatibleVersions: []string{},
+		CompatibleVersions: []string{}, AdapterAvailable: true,
 	},
 	{
 		ID: ProfileGoldleaf, DisplayName: "Goldleaf 0.10+", ProtocolFamily: "Goldleaf 0.10+",
@@ -117,6 +119,7 @@ type ValidationCode string
 const (
 	ValidationUnsupportedExtension ValidationCode = "unsupported-extension"
 	ValidationDuplicateWireName    ValidationCode = "duplicate-wire-name"
+	ValidationInvalidWireName      ValidationCode = "invalid-wire-name"
 )
 
 type ItemValidationError struct {
@@ -178,6 +181,26 @@ func ValidateCatalog(profileID ProfileID, catalog *files.Catalog) ([]ItemValidat
 				Message: fmt.Sprintf("%s projects more than one selected file as %q", profile.DisplayName, entry.Name),
 			})
 		}
+		if validateWireName(profileID, entry.Name) != nil {
+			validationErrors = append(validationErrors, ItemValidationError{
+				SourceID: entry.ID, Name: entry.Name, Code: ValidationInvalidWireName,
+				Message: fmt.Sprintf("%q cannot be represented safely by %s", entry.Name, profile.DisplayName),
+			})
+		}
 	}
 	return validationErrors, nil
+}
+
+func validateWireName(profileID ProfileID, name string) error {
+	switch profileID {
+	case ProfileDBI:
+		return dbi.ValidateWireName(name)
+	case ProfileAwoo:
+		return awoo.ValidateWireName(name)
+	default:
+		if strings.ContainsAny(name, "\x00\r\n") {
+			return errors.New("invalid wire name")
+		}
+		return nil
+	}
 }

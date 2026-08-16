@@ -22,13 +22,18 @@ func WithReadFaults(faults ...error) MemoryOption {
 	return func(memory *Memory) { memory.readFaults = append([]error(nil), faults...) }
 }
 
+func WithWriteFaults(faults ...error) MemoryOption {
+	return func(memory *Memory) { memory.writeFaults = append([]error(nil), faults...) }
+}
+
 type Memory struct {
-	mu         sync.Mutex
-	input      *bytes.Reader
-	output     bytes.Buffer
-	maxRead    int
-	maxWrite   int
-	readFaults []error
+	mu          sync.Mutex
+	input       *bytes.Reader
+	output      bytes.Buffer
+	maxRead     int
+	maxWrite    int
+	readFaults  []error
+	writeFaults []error
 }
 
 func NewMemory(input []byte, options ...MemoryOption) *Memory {
@@ -66,6 +71,11 @@ func (m *Memory) Write(ctx context.Context, source []byte) (int, error) {
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if len(m.writeFaults) > 0 {
+		fault := m.writeFaults[0]
+		m.writeFaults = m.writeFaults[1:]
+		return 0, fault
+	}
 	if m.maxWrite > 0 && len(source) > m.maxWrite {
 		source = source[:m.maxWrite]
 	}

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"testing"
 
 	"github.com/timonwong/nsp-carrier/internal/files"
@@ -27,7 +28,7 @@ func TestProfileRegistryIsTheImmutableCapabilitySourceOfTruth(t *testing.T) {
 			Transport: host.TransportUSB, SupportedExtensions: []string{".nsp", ".nsz", ".xci", ".xcz"},
 			WireNamespace: host.NamespaceFlatBasename, FilesystemAccess: host.FilesystemNone,
 			CompatibleVersions: []string{}, VerifiedVersions: []string{}, KnownIncompatibleVersions: []string{},
-			AdapterAvailable: false,
+			AdapterAvailable: true,
 		},
 		{
 			ID: host.ProfileGoldleaf, DisplayName: "Goldleaf 0.10+", ProtocolFamily: "Goldleaf 0.10+",
@@ -74,5 +75,41 @@ func TestProfileValidationReturnsItemSpecificCapabilityErrors(t *testing.T) {
 	}
 	if dbiErrors, err := host.ValidateCatalog(host.ProfileDBI, catalog); err != nil || len(dbiErrors) != 0 {
 		t.Fatalf("DBI validation = %#v, %v", dbiErrors, err)
+	}
+}
+
+func TestAwooValidationRejectsNamesThatBreakTheWireList(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows rejects these filenames before catalog discovery")
+	}
+	tests := []struct {
+		label string
+		name  string
+	}{
+		{label: "line delimiter", name: "line\nbreak.nsp"},
+		{label: "backslash", name: `back\slash.nsp`},
+		{label: "invalid UTF-8", name: string([]byte{0xff}) + ".nsp"},
+	}
+	for _, test := range tests {
+		t.Run(test.label, func(t *testing.T) {
+			if test.label == "invalid UTF-8" && runtime.GOOS == "darwin" {
+				t.Skip("macOS rejects invalid UTF-8 before catalog discovery")
+			}
+			path := filepath.Join(t.TempDir(), test.name)
+			if err := os.WriteFile(path, []byte("content"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			catalog, err := files.BuildCatalog([]string{path}, host.AllSupportedExtensions())
+			if err != nil {
+				t.Fatal(err)
+			}
+			validationErrors, err := host.ValidateCatalog(host.ProfileAwoo, catalog)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(validationErrors) != 1 || validationErrors[0].Code != host.ValidationInvalidWireName {
+				t.Fatalf("validation errors = %#v", validationErrors)
+			}
+		})
 	}
 }

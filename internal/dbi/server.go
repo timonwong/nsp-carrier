@@ -23,13 +23,13 @@ type Server struct {
 }
 
 type RangeReporter interface {
-	Requested(sourceID string, offset uint64, size uint32)
+	Requested(sourceID string, offset uint64, size uint64)
 	Served(sourceID string, offset uint64, size uint32) error
 }
 
 type discardReporter struct{}
 
-func (discardReporter) Requested(string, uint64, uint32)    {}
+func (discardReporter) Requested(string, uint64, uint64)    {}
 func (discardReporter) Served(string, uint64, uint32) error { return nil }
 
 func NewServer(catalog *files.Catalog, reporter RangeReporter) (*Server, error) {
@@ -90,7 +90,7 @@ func (s *Server) serveRange(ctx context.Context, link transport.Duplex, payloadS
 		return err
 	}
 	payload := make([]byte, payloadSize)
-	if err := readFull(ctx, link, payload); err != nil {
+	if err := transport.ReadFull(ctx, link, payload); err != nil {
 		return err
 	}
 	request, err := ParseRangeRequest(payload)
@@ -101,12 +101,12 @@ func (s *Server) serveRange(ctx context.Context, link transport.Duplex, payloadS
 	if !ok {
 		return fmt.Errorf("open range %q offset=%d size=%d: %w", request.Name, request.Offset, request.Size, files.ErrFileNotFound)
 	}
-	reader, availableSize, err := s.catalog.OpenRange(sourceID, request.Offset, request.Size)
+	reader, availableSize, err := s.catalog.OpenRange(sourceID, request.Offset, uint64(request.Size))
 	if err != nil {
 		return fmt.Errorf("open range %q offset=%d size=%d: %w", request.Name, request.Offset, request.Size, err)
 	}
 	defer reader.Close()
-	s.reporter.Requested(sourceID, request.Offset, request.Size)
+	s.reporter.Requested(sourceID, request.Offset, uint64(request.Size))
 
 	if err := writeHeader(ctx, link, Header{
 		Type:        CommandTypeResponse,
@@ -133,7 +133,7 @@ func (s *Server) serveRange(ctx context.Context, link transport.Duplex, payloadS
 		if _, err := io.ReadFull(reader, chunk); err != nil {
 			return fmt.Errorf("%w: %v", files.ErrSourceChanged, err)
 		}
-		written, err := writeFullCount(ctx, link, chunk)
+		written, err := transport.WriteFullCount(ctx, link, chunk)
 		if written > 0 {
 			if progressErr := s.reporter.Served(sourceID, offset, uint32(written)); progressErr != nil {
 				return progressErr
@@ -172,12 +172,12 @@ func (s *Server) serveList(ctx context.Context, link transport.Duplex) error {
 	if acknowledgement.Type != CommandTypeAcknowledgement || acknowledgement.Command != CommandList {
 		return fmt.Errorf("%w: invalid list acknowledgement", ErrProtocol)
 	}
-	return writeFull(ctx, link, payload)
+	return transport.WriteFull(ctx, link, payload)
 }
 
 func readHeader(ctx context.Context, link transport.Duplex) (Header, error) {
 	encoded := make([]byte, HeaderSize)
-	if err := readFull(ctx, link, encoded); err != nil {
+	if err := transport.ReadFull(ctx, link, encoded); err != nil {
 		return Header{}, err
 	}
 	header, err := DecodeHeader(encoded)
@@ -189,53 +189,5 @@ func readHeader(ctx context.Context, link transport.Duplex) (Header, error) {
 
 func writeHeader(ctx context.Context, link transport.Duplex, header Header) error {
 	encoded := EncodeHeader(header)
-	return writeFull(ctx, link, encoded[:])
-}
-
-func readFull(ctx context.Context, link transport.Duplex, destination []byte) error {
-	for len(destination) > 0 {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		read, err := link.Read(ctx, destination)
-		if read > 0 {
-			destination = destination[read:]
-		}
-		if errors.Is(err, transport.ErrTimeout) {
-			continue
-		}
-		if err != nil {
-			return err
-		}
-		if read == 0 {
-			return io.ErrNoProgress
-		}
-	}
-	return nil
-}
-
-func writeFull(ctx context.Context, link transport.Duplex, source []byte) error {
-	_, err := writeFullCount(ctx, link, source)
-	return err
-}
-
-func writeFullCount(ctx context.Context, link transport.Duplex, source []byte) (int, error) {
-	total := 0
-	for len(source) > 0 {
-		if err := ctx.Err(); err != nil {
-			return total, err
-		}
-		written, err := link.Write(ctx, source)
-		if written > 0 {
-			total += written
-			source = source[written:]
-		}
-		if err != nil {
-			return total, err
-		}
-		if written == 0 {
-			return total, io.ErrNoProgress
-		}
-	}
-	return total, nil
+	return transport.WriteFull(ctx, link, encoded[:])
 }

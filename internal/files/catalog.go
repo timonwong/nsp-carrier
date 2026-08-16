@@ -176,7 +176,7 @@ type sectionReadCloser struct {
 
 func (r *sectionReadCloser) Close() error { return r.file.Close() }
 
-func (c *Catalog) OpenRange(sourceID string, offset uint64, size uint32) (io.ReadCloser, uint32, error) {
+func (c *Catalog) OpenRange(sourceID string, offset uint64, size uint64) (io.ReadCloser, uint64, error) {
 	entry, ok := c.byID[sourceID]
 	if !ok {
 		return nil, 0, ErrFileNotFound
@@ -197,5 +197,5 @@ func (c *Catalog) OpenRange(sourceID string, offset uint64, size uint32) (io.Rea
 	return &sectionReadCloser{
 		SectionReader: io.NewSectionReader(file, int64(offset), int64(available)),
 		file:          file,
-	}, uint32(available), nil
+	}, available, nil
 }

@@ -50,7 +50,7 @@ func NewProgress(catalog *files.Catalog) *Progress {
 	return &Progress{files: tracked}
 }
 
-func (p *Progress) Requested(sourceID string, offset uint64, size uint32) {
+func (p *Progress) Requested(sourceID string, offset uint64, size uint64) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	value := p.files[sourceID]

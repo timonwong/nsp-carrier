@@ -15,17 +15,25 @@ large-file, multi-file, reconnect, Stop, EXIT, upstream-differential, full UI
 transfer, and deliberate cable-removal checks. Public packaging and signing
 remain deferred.
 
+The Awoo USB profile has an independent clean-room adapter with pinned
+transcript, unit, fuzz, race, and differential coverage. Its separate
+real-device acceptance gate is still pending, so it is compatible but not
+`Verified`. Goldleaf remains unavailable until its ordered adapter phase.
+
 The current UI provides:
 
 - native file and recursive folder selection plus file drop;
+- explicit DBI, Awoo USB, or Goldleaf profile selection with persisted DBI
+  migration fallback and profile-specific validation;
 - a selectable, searchable queue with duplicate-basename conflict detection;
 - Start/Stop and canonical Go-owned session state;
 - per-file unique-byte progress, bounded activity logs, and typed errors;
 - Auto, Light, and Dark appearance;
 - the explicit distinction between `FullyServed` and device-side installation.
 
-See [the design](docs/design.md), [protocol notes](docs/dbi0-protocol.md),
-[Gate 0](docs/gate0.md), and [roadmap](docs/roadmap.md).
+See [the design](docs/design.md), [DBI protocol notes](docs/dbi0-protocol.md),
+[Awoo protocol notes](docs/awoo-usb-protocol.md), [DBI Gate 0](docs/gate0.md),
+[Awoo gate](docs/awoo-gate.md), and [roadmap](docs/roadmap.md).
 
 ## Developer USB spike
 
@@ -40,21 +48,23 @@ Run the retained diagnostics CLI with local content paths:
 ```sh
 make check
 make gate0-probe
-make usb-spike ARGS='--timeout=30m --verbose -- /path/to/file.nsp /path/to/folder'
+make usb-spike ARGS='--profile=dbi --timeout=30m --verbose -- /path/to/file.nsp /path/to/folder'
+make usb-spike ARGS='--profile=awoo --timeout=30m --verbose -- /path/to/file.nsp'
 ```
 
-`make gate0-probe` builds before it starts waiting. Once it prints that the
-host is ready, open `Install title from DBIbackend` on the Switch; probe mode
-claims the discovered bulk endpoints and exits without serving file content.
+`make gate0-probe` is DBI-specific: it builds before waiting, then claims the
+discovered bulk endpoints and exits without serving file content. Once it is
+ready, open `Install title from DBIbackend` on the Switch. Use the ordinary
+`--profile=awoo` CLI flow and [Awoo gate](docs/awoo-gate.md) for Awoo evidence.
 
 The CLI recursively builds and freezes the catalog, waits for USB device
-`057e:3000`, discovers exactly one bulk IN/OUT endpoint pair, and serves DBI0
-until DBI exits, the device disconnects, or the context is cancelled. Use
+`057e:3000`, discovers exactly one bulk IN/OUT endpoint pair, and serves the
+explicitly selected profile until it exits, disconnects, or is cancelled. Use
 `--json` for newline-delimited structured logs. Real content files are ignored
 by Git and must never be committed.
 
-Passing automated tests or compiling this CLI does not pass Gate 0; the
-hardware acceptance matrix in `docs/gate0.md` remains authoritative.
+Passing automated tests or compiling this CLI does not pass a real-device
+gate; each profile's acceptance document remains independently authoritative.
 
 ## Wails UI
 

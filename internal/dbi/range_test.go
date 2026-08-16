@@ -40,6 +40,7 @@ func TestParseRangeRequestRejectsMalformedOrUnsafeNames(t *testing.T) {
 		"path separator":      requestPayload([]byte("dir/game.nsp"), 12),
 		"dot path":            requestPayload([]byte(".."), 2),
 		"NUL":                 requestPayload([]byte("game\x00.nsp"), 9),
+		"line delimiter":      requestPayload([]byte("line\nbreak.nsp"), 14),
 		"name above four KiB": requestPayload([]byte(strings.Repeat("a", 4097)), 4097),
 	}
 

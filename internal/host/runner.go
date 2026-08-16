@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/timonwong/nsp-carrier/internal/awoo"
 	"github.com/timonwong/nsp-carrier/internal/dbi"
 	"github.com/timonwong/nsp-carrier/internal/files"
 	"github.com/timonwong/nsp-carrier/internal/transport"
@@ -83,7 +84,8 @@ func NewRunner() *Runner {
 }
 
 func (r *Runner) Run(ctx context.Context, request Request) error {
-	if _, ok := ProfileByID(request.Profile); !ok {
+	profile, ok := ProfileByID(request.Profile)
+	if !ok {
 		return fmt.Errorf("%w: %q", ErrUnknownProfile, request.Profile)
 	}
 	if request.Catalog == nil || request.Connector == nil {
@@ -96,10 +98,10 @@ func (r *Runner) Run(ctx context.Context, request Request) error {
 	if len(validationErrors) > 0 {
 		return CatalogValidationErrors(validationErrors)
 	}
-	if request.Profile != ProfileDBI {
+	if !profile.AdapterAvailable {
 		return fmt.Errorf("%w: %s", ErrProfileUnavailable, request.Profile)
 	}
-	if _, err := dbi.NewServer(request.Catalog, nil); err != nil {
+	if _, err := newAdapter(request.Profile, request.Catalog, nil); err != nil {
 		return err
 	}
 	emit := func(sessionID string, state State, progress *Progress, err error) {
@@ -138,7 +140,7 @@ func (r *Runner) Run(ctx context.Context, request Request) error {
 
 		sessionID := r.newSessionID()
 		progress := NewProgress(request.Catalog)
-		server, err := dbi.NewServer(request.Catalog, progress)
+		server, err := newAdapter(request.Profile, request.Catalog, progress)
 		if err != nil {
 			_ = connection.Close()
 			return err
@@ -167,9 +169,24 @@ func (r *Runner) Run(ctx context.Context, request Request) error {
 	}
 }
 
+type protocolAdapter interface {
+	Serve(context.Context, transport.Duplex) error
+}
+
+func newAdapter(profile ProfileID, catalog *files.Catalog, progress *Progress) (protocolAdapter, error) {
+	switch profile {
+	case ProfileDBI:
+		return dbi.NewServer(catalog, progress)
+	case ProfileAwoo:
+		return awoo.NewServer(catalog, progress)
+	default:
+		return nil, fmt.Errorf("%w: %s", ErrProfileUnavailable, profile)
+	}
+}
+
 func (r *Runner) serve(
 	ctx context.Context,
-	server *dbi.Server,
+	server protocolAdapter,
 	connection Connection,
 	sessionID string,
 	progress *Progress,

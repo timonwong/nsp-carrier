@@ -21,14 +21,19 @@
 
 ## Installer protocol expansion
 
-- explicit installer profiles: DBI, Awoo USB, and Goldleaf
+- explicit installer profiles: DBI, Awoo USB, and Goldleaf (implemented)
 - independent clean-room protocol adapters over the shared USB transport
-- one shared host-session runner used by Wails and `usb-spike`
+  (DBI and Awoo implemented; Goldleaf pending)
+- one shared host-session runner used by Wails and `usb-spike` (implemented)
 - protocol-neutral frozen source catalog with profile-owned wire projections
+  (implemented)
 - profile capabilities as the source of truth for format validation and UI
+  (implemented)
 - persisted Idle-only profile selection with DBI as the migration default
+  (implemented)
 - distinct compatible, verified, and known-incompatible version reporting
-- Awoo USB protocol compatibility
+- Awoo USB protocol compatibility (automated evidence implemented; real-device
+  gate pending)
 - Goldleaf 0.10+ protocol compatibility with a read-only virtual catalog drive
 - scripted protocol fixtures and separate real-device acceptance matrices
 - no automatic protocol detection on the shared `057e:3000` USB identity

@@ -34,9 +34,11 @@ test: ## Run unit tests without cache.
 test-race: ## Run tests with the race detector.
 	$(GO) test -race -count=1 ./...
 
-fuzz: ## Run short DBI codec fuzz smoke tests.
+fuzz: ## Run short protocol codec fuzz smoke tests.
 	$(GO) test ./internal/dbi -run='^$$' -fuzz=FuzzDecodeHeader -fuzztime=$(FUZZ_TIME)
 	$(GO) test ./internal/dbi -run='^$$' -fuzz=FuzzParseRangeRequest -fuzztime=$(FUZZ_TIME)
+	$(GO) test ./internal/awoo -run='^$$' -fuzz=FuzzDecodeCommandHeader -fuzztime=$(FUZZ_TIME)
+	$(GO) test ./internal/awoo -run='^$$' -fuzz=FuzzParseRangeRequest -fuzztime=$(FUZZ_TIME)
 
 vet: ## Run Go static analysis.
 	$(GO) vet ./...

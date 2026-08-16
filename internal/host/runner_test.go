@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/timonwong/nsp-carrier/internal/awoo"
 	"github.com/timonwong/nsp-carrier/internal/dbi"
 	"github.com/timonwong/nsp-carrier/internal/files"
 	"github.com/timonwong/nsp-carrier/internal/host"
@@ -41,6 +42,27 @@ func TestRunnerDispatchesDBIAndOwnsServingSessionState(t *testing.T) {
 	want := dbi.EncodeHeader(dbi.Header{Type: dbi.CommandTypeResponse, Command: dbi.CommandExit})
 	if string(link.Written()) != string(want[:]) {
 		t.Fatalf("wire response = %x, want %x", link.Written(), want)
+	}
+}
+
+func TestRunnerDispatchesAwooThroughTheSharedSessionLifecycle(t *testing.T) {
+	catalog, err := files.BuildCatalog(nil, host.AllSupportedExtensions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	exit := awoo.EncodeCommandHeader(awoo.CommandHeader{Type: awoo.CommandTypeRequest, Command: awoo.CommandExit})
+	link := transport.NewMemory(exit[:])
+	var terminal host.Event
+	err = host.NewRunner().Run(context.Background(), host.Request{
+		Profile: host.ProfileAwoo, Catalog: catalog, Connector: connector(link),
+		Observe: func(event host.Event) { terminal = event },
+	})
+	if err != nil || terminal.State != host.StateCompleted || terminal.Profile != host.ProfileAwoo {
+		t.Fatalf("Run() error = %v, terminal = %#v", err, terminal)
+	}
+	want := awoo.EncodeListHeader(0)
+	if string(link.Written()) != string(want[:]) {
+		t.Fatalf("Awoo opening handshake = %x, want %x", link.Written(), want)
 	}
 }
 
