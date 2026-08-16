@@ -34,7 +34,7 @@ func TestProfileRegistryIsTheImmutableCapabilitySourceOfTruth(t *testing.T) {
 			ID: host.ProfileGoldleaf, DisplayName: "Goldleaf 0.10+", ProtocolFamily: "Goldleaf 0.10+",
 			Transport: host.TransportUSB, SupportedExtensions: []string{".nsp"},
 			WireNamespace: host.NamespaceVirtualCatalog, FilesystemAccess: host.FilesystemReadOnly,
-			CompatibleVersions: []string{"0.10+"}, VerifiedVersions: []string{}, KnownIncompatibleVersions: []string{},
+			CompatibleVersions: []string{"0.10+"}, VerifiedVersions: []string{"1.2.0"}, KnownIncompatibleVersions: []string{},
 			AdapterAvailable: true,
 		},
 	}

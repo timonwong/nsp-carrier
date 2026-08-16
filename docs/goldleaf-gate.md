@@ -3,14 +3,15 @@
 Automated transcript, unit, fuzz, race, and build checks are prerequisites
 only. They do not establish real-device compatibility.
 
-Status: **In progress; core browsing, large-file and multi-file installation,
-whole-source serving, read-only delete, Stop, and disconnect/reconnect paths
-passed on Goldleaf 1.2.0**.
+Status: **Pass for Goldleaf 1.2.0 in the recorded environment. Every matrix row
+has real-device or pinned-reference evidence.**
 
 ## Recorded environment
 
 - Goldleaf 1.2.0 using its Remote PC browser; the USB serial descriptor also
   reported `1.2.0`;
+- Goldleaf tag `1.2.0` commit `c43b31caa935338f43313394daa0f59810803507`
+  was used to confirm its Remote PC UI shortcuts;
 - Switch firmware unconfirmed, reported as approximately version 20;
 - NSP Carrier commits `18fdbdd` (adapter) and `75d949f` (disconnect
   classification);
@@ -27,7 +28,7 @@ passed on Goldleaf 1.2.0**.
 | 3 | List selected `.nsp` files in frozen catalog order and stat them correctly | Pass |
 | 4 | Open and read an NSP through start/read/end, including non-zero and repeated ranges | Pass |
 | 5 | Keep partial reads below `FullyServed`; reach `FullyServed` only after the whole source is served | Pass |
-| 6 | Reject create, write, delete, and rename; show structured warnings and keep browsing | Partial |
+| 6 | Reject create, write, delete, and rename; show structured warnings and keep browsing | Pass |
 | 7 | Serve a file larger than 4 GiB with 64-bit offsets | Pass |
 | 8 | Complete a multi-file browsing/serving session | Pass |
 | 9 | Stop within the bounded shutdown deadline | Pass |
@@ -65,8 +66,20 @@ passed on Goldleaf 1.2.0**.
   1.2.0 does not surface the adapter's negative delete result in this UI path.
   The session remained usable. The multi-file session repeated this behavior
   after each installation: both delete requests emitted structured read-only
-  warnings and the second file still installed successfully. Create, write, and
-  rename remain unobserved, so matrix row 6 is Partial.
+  warnings and the second file still installed successfully.
+- The remaining mutations were exercised through the Goldleaf 1.2.0 Remote PC
+  UI shortcuts documented by its exact tagged source. Rename in session
+  `ccd4727d-0177-4a80-91ca-d69a713ada1c` sent command 14 and received
+  `0xBAF1`; the original file retained size, modification time, and SHA-256 and
+  reappeared after refresh. In session
+  `3fbfa8fa-e698-43b4-b808-7d556c3987b0`, the `L` create-file shortcut sent
+  command 12 for `test.txt` and received `0xBAF1`. Copying a small SD-card
+  settings file and pressing `X` to paste sent StartFile in write mode
+  (`0xBAF3`), WriteFile command 10 (`0xBAF1`), and EndFile in write mode
+  (`0xBAF3`). Neither target appeared after refresh, structured create/write/
+  rename warnings were emitted, and browsing continued. Goldleaf displayed
+  success for these actions despite the negative protocol results; this is a
+  Goldleaf 1.2.0 UI false positive, not a host mutation.
 - Cable removal during session `2e053ecb-5b72-4abe-afb1-6f5633dbc6c3`
   produced typed `Disconnected` with `transport disconnected: transfer was
   cancelled`, then returned to `WaitingForDevice` without exiting. Reconnecting
@@ -87,5 +100,6 @@ passed on Goldleaf 1.2.0**.
   parallel enumerator claimed the same Goldleaf device immediately. Do not run
   `system_profiler` or equivalent USB enumeration during a gate claim.
 
-Do not call any Goldleaf version `Verified` until its exact version and every
-row above pass. Automated coverage establishes only implementation readiness.
+Goldleaf 1.2.0 is `Verified` only for the exact version and matrix recorded
+above. Other 0.10+ versions remain protocol-family compatible unless they gain
+their own complete real-device matrix.

@@ -39,7 +39,8 @@
 - Goldleaf 0.10+ read-only virtual catalog adapter (automated evidence
   implemented; Goldleaf 1.2.0 browsing, >4 GiB NSP, delete rejection, Stop,
   cable-removal, fresh-session reconnect, whole-source, and multi-file checks
-  passed; real command differential passed; remaining mutation evidence pending)
+  passed; create/write/delete/rename rejection and real command differential
+  passed; exact version 1.2.0 verified)
 - scripted protocol fixtures and separate real-device acceptance matrices
 - no automatic protocol detection on the shared `057e:3000` USB identity
 

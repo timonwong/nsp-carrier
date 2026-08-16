@@ -71,7 +71,7 @@ var profileRegistry = []Profile{
 		ID: ProfileGoldleaf, DisplayName: "Goldleaf 0.10+", ProtocolFamily: "Goldleaf 0.10+",
 		Transport: TransportUSB, SupportedExtensions: []string{".nsp"},
 		WireNamespace: NamespaceVirtualCatalog, FilesystemAccess: FilesystemReadOnly,
-		CompatibleVersions: []string{"0.10+"}, AdapterAvailable: true,
+		CompatibleVersions: []string{"0.10+"}, VerifiedVersions: []string{"1.2.0"}, AdapterAvailable: true,
 	},
 }
 
