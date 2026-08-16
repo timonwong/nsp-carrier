@@ -19,10 +19,25 @@
   reconnect starts a fresh DBI session and does not resume an interrupted install)
 - no public packaging yet
 
+## Installer protocol expansion
+
+- explicit installer profiles: DBI, Awoo USB, and Goldleaf
+- independent clean-room protocol adapters over the shared USB transport
+- one shared host-session runner used by Wails and `usb-spike`
+- protocol-neutral frozen source catalog with profile-owned wire projections
+- profile capabilities as the source of truth for format validation and UI
+- persisted Idle-only profile selection with DBI as the migration default
+- distinct compatible, verified, and known-incompatible version reporting
+- Awoo USB protocol compatibility
+- Goldleaf 0.10+ protocol compatibility with a read-only virtual catalog drive
+- scripted protocol fixtures and separate real-device acceptance matrices
+- no automatic protocol detection on the shared `057e:3000` USB identity
+
 ## Deferred HTTP
 
-HTTP is explicitly deferred until after the USB MVP. Before implementation,
-its design must resolve:
+HTTP, including Awoo Network transfer, is explicitly deferred until after the
+USB installer protocol expansion. Before implementation, its design must
+resolve:
 
 - opt-in LAN exposure and bind-address policy;
 - authentication or pairing;
@@ -42,6 +57,13 @@ shared seekable file handle are not acceptable designs.
 - single-instance file handoff
 - taskbar/dock integration
 - queue persistence and explicit save/load
+- read-only serving from existing split-file chunk directories
 - public distribution, bundled libusb, codesigning, notarization, auto-update
 - validated Windows and Linux support
 - i18n
+
+## Out of scope
+
+- RCM payload injection
+- split-file creation
+- split-file merging

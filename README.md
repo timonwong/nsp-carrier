@@ -1,7 +1,7 @@
 # nsp-carrier
 
-`nsp-carrier` is a clean Go implementation of the PC-side DBI raw-USB file
-service with a Wails v2 + Svelte/TypeScript desktop UI.
+`nsp-carrier` is an Omni host for NS installers, implemented cleanly in Go
+with a Wails v2 + Svelte/TypeScript desktop UI.
 
 The project is not an MTP implementation and cannot prove that a title was
 installed successfully. It can only report host-observable USB session and
@@ -9,10 +9,11 @@ file-serving state.
 
 ## Current phase
 
-Gate 0 and the Wails USB MVP have passed real-Switch validation. The protocol,
-macOS USB path, and desktop UI have completed LIST, range, large-file,
-multi-file, reconnect, Stop, EXIT, upstream-differential, full UI transfer, and
-deliberate cable-removal checks. Public packaging and signing remain deferred.
+The DBI profile's Gate 0 and Wails USB MVP have passed real-Switch validation.
+The DBI0 protocol, macOS USB path, and desktop UI have completed LIST, range,
+large-file, multi-file, reconnect, Stop, EXIT, upstream-differential, full UI
+transfer, and deliberate cable-removal checks. Public packaging and signing
+remain deferred.
 
 The current UI provides:
 
