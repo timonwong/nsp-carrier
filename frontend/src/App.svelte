@@ -41,6 +41,7 @@
   let snapshot = emptySnapshot
   let search = ''
   let theme: Theme = 'auto'
+  let themeMenuOpen = false
   let actionError = ''
   let working = false
 
@@ -51,6 +52,7 @@
   $: allSelected = snapshot.items.length > 0 && snapshot.selectedCount === snapshot.items.length
   $: busy = snapshot.state !== 'Idle'
   $: activeProfile = snapshot.profiles.find((profile) => profile.id === snapshot.activeProfile)
+  $: sessionCopy = formatSessionCopy(snapshot, activeProfile?.displayName)
 
   onMount(() => {
     const savedTheme = localStorage.getItem('nsp-carrier-theme')
@@ -61,14 +63,27 @@
     EventsOn(snapshotEvent, (next: app.ViewSnapshot) => {
       snapshot = toViewSnapshot(next)
     })
+    const closeThemeMenu = (event: MouseEvent) => {
+      if (!(event.target instanceof Element) || !event.target.closest('.theme-wrap')) themeMenuOpen = false
+    }
+    const closeThemeMenuOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') themeMenuOpen = false
+    }
+    document.addEventListener('click', closeThemeMenu)
+    document.addEventListener('keydown', closeThemeMenuOnEscape)
     void GetSnapshot().then((next) => {
       snapshot = toViewSnapshot(next)
     }).catch(showError)
-    return () => EventsOff(snapshotEvent)
+    return () => {
+      document.removeEventListener('click', closeThemeMenu)
+      document.removeEventListener('keydown', closeThemeMenuOnEscape)
+      EventsOff(snapshotEvent)
+    }
   })
 
   function applyTheme(next: Theme): void {
     theme = next
+    themeMenuOpen = false
     document.documentElement.dataset.theme = next
     localStorage.setItem('nsp-carrier-theme', next)
   }
@@ -121,6 +136,21 @@
   function formatExtensions(extensions: string[]): string {
     return extensions.map((value) => value.slice(1).toUpperCase()).join(', ')
   }
+
+  function formatSessionCopy(view: app.ViewSnapshot, profileName?: string): string {
+    if (view.state === 'Idle') return view.items.length ? 'Ready to serve' : 'Add files to begin'
+    const servingItem = view.items.find((item) => item.status === 'Serving' || item.status === 'Requested')
+    switch (view.state) {
+      case 'WaitingForDevice': return `Waiting for ${profileName ?? 'installer'}`
+      case 'Connected': return 'Device connected'
+      case 'Serving': return servingItem ? `Serving ${servingItem.name}` : `Serving ${profileName ?? 'installer'} requests`
+      case 'Completed': return 'Session completed'
+      case 'Disconnected': return 'Device disconnected'
+      case 'Failed': return 'Session failed'
+      case 'Stopping': return 'Stopping session'
+      default: return view.state
+    }
+  }
 </script>
 
 <svelte:head>
@@ -137,33 +167,53 @@
       </div>
     </div>
     <div class="titlebar-actions">
-      <span class:active={busy} class="state-pill">
-        <span class="state-dot"></span>{snapshot.state}
-      </span>
-      <label class="profile-picker" aria-label="Installer profile">
-        <span>Installer</span>
-        <select
-          value={snapshot.activeProfile}
-          disabled={busy || working}
-          on:change={(event) => run(() => SetProfile((event.currentTarget as HTMLSelectElement).value))}
+      <div class="theme-wrap">
+        <button
+          class="icon-button"
+          aria-label="Change theme"
+          aria-expanded={themeMenuOpen}
+          aria-haspopup="menu"
+          on:click={() => (themeMenuOpen = !themeMenuOpen)}
         >
-          {#each snapshot.profiles as profile (profile.id)}
-            <option value={profile.id}>{profile.displayName}</option>
-          {/each}
-        </select>
-      </label>
-      <label class="theme-picker" aria-label="Appearance">
-        <span>Theme</span>
-        <select value={theme} on:change={(event) => applyTheme((event.currentTarget as HTMLSelectElement).value as Theme)}>
-          <option value="auto">Auto</option>
-          <option value="light">Light</option>
-          <option value="dark">Dark</option>
-        </select>
-      </label>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="8.5"></circle>
+            <path d="M12 3.5a8.5 8.5 0 0 1 0 17Z" fill="currentColor" stroke="none"></path>
+          </svg>
+        </button>
+        {#if themeMenuOpen}
+          <div class="theme-menu" role="menu" aria-label="Theme">
+            {#each [{value: 'auto', label: 'System'}, {value: 'light', label: 'Light'}, {value: 'dark', label: 'Dark'}] as option}
+              <button
+                type="button"
+                class="theme-opt"
+                role="menuitemradio"
+                aria-checked={theme === option.value}
+                on:click={() => applyTheme(option.value as Theme)}
+              >
+                <span>{option.label}</span><span class="check" aria-hidden="true">✓</span>
+              </button>
+            {/each}
+          </div>
+        {/if}
+      </div>
     </div>
   </header>
 
   <section class="toolbar">
+    <div class="protocol-cluster">
+      <span class="protocol-label">Protocol</span>
+      <div class="segmented" role="group" aria-label="Installer profile">
+        {#each snapshot.profiles as profile (profile.id)}
+          <button
+            type="button"
+            class:active={profile.id === snapshot.activeProfile}
+            aria-pressed={profile.id === snapshot.activeProfile}
+            disabled={busy || working}
+            on:click={() => run(() => SetProfile(profile.id))}
+          >{profile.displayName}</button>
+        {/each}
+      </div>
+    </div>
     <div class="primary-actions">
       <button class="button primary" disabled={busy || working} on:click={() => run(ChooseFiles)}>
         <span aria-hidden="true">＋</span> Add files
@@ -308,19 +358,19 @@
         {/if}
       </div>
       <div class="host-note">
-        <strong>Host-observable status only</strong>
-        <span>Fully Served does not prove that {activeProfile?.displayName ?? 'the installer'} installed a title.</span>
-        {#if activeProfile}
-          <span>{activeProfile.protocolFamily} compatibility is not exact-version verification. NSP Carrier does not guess an undetected version.</span>
-        {/if}
+        <strong>Host status only</strong>
+        <span>Fully Served ≠ installed. Compatibility ≠ verified version.</span>
       </div>
     </aside>
   </div>
 
   <footer class="session-bar">
+    <span class:busy class="state-pill">
+      <span class="state-dot"></span>{snapshot.state}
+    </span>
     <div class="overall-progress">
       <div class="progress-copy">
-        <strong>{busy ? snapshot.state : snapshot.items.length ? 'Ready to serve' : 'Add files to begin'}</strong>
+        <strong>{sessionCopy}</strong>
         <span>
           {#if snapshot.requestedBytes > 0}
             {formatBytes(snapshot.uniqueServedBytes)} of {formatBytes(snapshot.requestedBytes)} uniquely served
@@ -337,7 +387,8 @@
       <button class="button stop" on:click={() => run(async () => Stop())}>Stop</button>
     {:else}
       <button class="button start" disabled={!snapshot.canStart || working} on:click={() => run(Start)}>
-        Start {activeProfile?.displayName ?? 'USB'} service <span aria-hidden="true">→</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.14v13.72c0 .8.87 1.3 1.56.9l11-6.86a1.05 1.05 0 0 0 0-1.8l-11-6.86A1.04 1.04 0 0 0 8 5.14Z"></path></svg>
+        Start Transfer
       </button>
     {/if}
   </footer>
