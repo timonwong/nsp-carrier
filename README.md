@@ -74,8 +74,22 @@ make app-build
 
 The production development bundle is written to
 `build/bin/NSP Carrier.app`. It is self-signed for local testing only. The
-bundle identifier is `im.theo.nsp-carrier`; public signing, notarisation,
-bundled libusb, and installers remain deferred.
+bundle identifier is `im.theo.nsp-carrier`; public signing, notarisation, and
+installers remain deferred.
+
+## Continuous integration
+
+GitHub Actions builds and checks the two currently supported desktop targets
+for pull requests, pushes to `main`, and manual runs:
+
+- Windows amd64 on a native x64 runner;
+- macOS arm64 on an Apple Silicon runner.
+
+Each job uploads a seven-day zip artifact and a SHA-256 checksum. The Windows
+zip includes `libusb-1.0.dll`; the macOS app embeds `libusb` and is ad-hoc
+signed after bundling. These CI artifacts are not publicly code-signed or
+notarised. Windows users must configure a compatible USB driver such as
+WinUSB separately. Linux is not currently built or supported.
 
 ## License
 
