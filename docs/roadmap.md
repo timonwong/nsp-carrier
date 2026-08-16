@@ -37,8 +37,8 @@
   multi-file passed; remaining format and capture evidence pending)
 - Goldleaf 0.10+ read-only virtual catalog adapter (automated evidence
   implemented; Goldleaf 1.2.0 browsing, >4 GiB NSP, delete rejection, Stop,
-  cable-removal, and fresh-session reconnect checks passed; remaining mutation,
-  multi-file, whole-source, and capture evidence pending)
+  cable-removal, fresh-session reconnect, whole-source, and multi-file checks
+  passed; remaining mutation and capture evidence pending)
 - scripted protocol fixtures and separate real-device acceptance matrices
 - no automatic protocol detection on the shared `057e:3000` USB identity
 

@@ -23,9 +23,9 @@ raw command-capture evidence remain, so it is compatible but not yet
 `Verified`. The Goldleaf 0.10+ read-only `VIRT:/` adapter is implemented with
 automated protocol coverage. Goldleaf 1.2.0 has passed real-device virtual
 catalog browsing, a greater-than-4-GiB NSP installation, read-only delete, Stop,
-and fresh-session disconnect/reconnect. Create, write, rename, multi-file,
-whole-source, and packet-differential evidence remain, so it is compatible but
-not yet `Verified`.
+fresh-session disconnect/reconnect, whole-source serving, and multi-file
+installation. Create, write, rename, and packet-differential evidence remain,
+so it is compatible but not yet `Verified`.
 
 The current UI provides:
 
