@@ -86,8 +86,11 @@ requested by the end of a session become `NotRequested`, not `Failed`.
 
 - Idle USB polling timeouts are normal.
 - Short reads/writes continue until complete or cancelled.
-- Context cancellation is the primary Stop mechanism; device reset is a
-  bounded fallback.
+- Context cancellation is the primary Stop mechanism. Bounded shutdown stops
+  new I/O, cancels the connection-owned transfer context, and waits for every
+  in-flight transfer before releasing USB resources. If a transfer does not
+  drain before the deadline, keep its libusb context and event loop alive until
+  it exits; never reset or close a device underneath a pending transfer.
 - User Stop returns to `Idle` without auto-restart.
 - Unexpected disconnect retains the frozen catalog and waits for a new
   session, but does not claim transfer resumption.

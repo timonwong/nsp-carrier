@@ -19,6 +19,9 @@ const (
 var (
 	ErrDeviceNotFound  = errors.New("DBI USB device not found")
 	ErrMultipleDevices = errors.New("multiple DBI USB devices found")
+	ErrClosed          = errors.New("USB connection closed")
+	ErrTransferActive  = errors.New("USB transfer still active")
+	ErrShutdownTimeout = errors.New("USB shutdown timed out")
 )
 
 type OpenOptions struct {
@@ -35,16 +38,61 @@ type DeviceInfo struct {
 	Selection EndpointSelection
 }
 
-type Connection struct {
-	mu              sync.Mutex
+type inEndpoint interface {
+	ReadContext(context.Context, []byte) (int, error)
+}
+
+type outEndpoint interface {
+	WriteContext(context.Context, []byte) (int, error)
+}
+
+type connectionResources interface {
+	Close() error
+}
+
+type gousbResources struct {
 	context         *gousb.Context
 	device          *gousb.Device
 	config          *gousb.Config
 	interfaceHandle *gousb.Interface
-	in              *gousb.InEndpoint
-	out             *gousb.OutEndpoint
-	info            DeviceInfo
-	closed          bool
+}
+
+func (r *gousbResources) Close() error {
+	if r.interfaceHandle != nil {
+		r.interfaceHandle.Close()
+		r.interfaceHandle = nil
+	}
+	var closeErr error
+	if r.config != nil {
+		closeErr = errors.Join(closeErr, r.config.Close())
+		r.config = nil
+	}
+	if r.device != nil {
+		closeErr = errors.Join(closeErr, r.device.Close())
+		r.device = nil
+	}
+	if r.context != nil {
+		closeErr = errors.Join(closeErr, r.context.Close())
+		r.context = nil
+	}
+	return closeErr
+}
+
+type Connection struct {
+	mu        sync.Mutex
+	in        inEndpoint
+	out       outEndpoint
+	resources connectionResources
+	info      DeviceInfo
+
+	lifetimeCancel context.CancelFunc
+	lifetime       context.Context
+	active         int
+	closing        bool
+	drained        chan struct{}
+	finalizeOnce   sync.Once
+	closeDone      chan struct{}
+	closeErr       error
 }
 
 var _ transport.Duplex = (*Connection)(nil)
@@ -117,28 +165,48 @@ func Open(options OpenOptions) (*Connection, error) {
 		return failInterface(fmt.Errorf("open bulk OUT endpoint %d: %w", selection.OutEndpoint, err))
 	}
 
-	return &Connection{
+	connection := newConnection(in, out, &gousbResources{
 		context:         usbContext,
 		device:          device,
 		config:          config,
 		interfaceHandle: interfaceHandle,
-		in:              in,
-		out:             out,
-		info: DeviceInfo{
-			Vendor:    device.Desc.Vendor,
-			Product:   device.Desc.Product,
-			Bus:       device.Desc.Bus,
-			Address:   device.Desc.Address,
-			Speed:     device.Desc.Speed,
-			Selection: selection,
-		},
-	}, nil
+	})
+	connection.info = DeviceInfo{
+		Vendor:    device.Desc.Vendor,
+		Product:   device.Desc.Product,
+		Bus:       device.Desc.Bus,
+		Address:   device.Desc.Address,
+		Speed:     device.Desc.Speed,
+		Selection: selection,
+	}
+	return connection, nil
+}
+
+func newConnection(in inEndpoint, out outEndpoint, resources connectionResources) *Connection {
+	lifetime, cancel := context.WithCancel(context.Background())
+	return &Connection{
+		in:             in,
+		out:            out,
+		resources:      resources,
+		lifetime:       lifetime,
+		lifetimeCancel: cancel,
+		drained:        make(chan struct{}),
+		closeDone:      make(chan struct{}),
+	}
 }
 
 func (c *Connection) Info() DeviceInfo { return c.info }
 
 func (c *Connection) Read(ctx context.Context, destination []byte) (int, error) {
-	read, err := c.in.ReadContext(ctx, destination)
+	endpoint, err := c.beginRead()
+	if err != nil {
+		return 0, err
+	}
+	defer c.endTransfer()
+	opCtx, cancel := c.transferContext(ctx)
+	defer cancel()
+
+	read, err := endpoint.ReadContext(opCtx, destination)
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return read, ctxErr
 	}
@@ -146,7 +214,15 @@ func (c *Connection) Read(ctx context.Context, destination []byte) (int, error) 
 }
 
 func (c *Connection) Write(ctx context.Context, source []byte) (int, error) {
-	written, err := c.out.WriteContext(ctx, source)
+	endpoint, err := c.beginWrite()
+	if err != nil {
+		return 0, err
+	}
+	defer c.endTransfer()
+	opCtx, cancel := c.transferContext(ctx)
+	defer cancel()
+
+	written, err := endpoint.WriteContext(opCtx, source)
 	if ctxErr := ctx.Err(); ctxErr != nil {
 		return written, ctxErr
 	}
@@ -166,52 +242,116 @@ func normalizeTransferError(err error) error {
 	}
 }
 
+// Close starts connection shutdown without waiting for an active transfer.
+// Resources are closed automatically when the final transfer drains.
 func (c *Connection) Close() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.closed {
-		return nil
+	drained := c.startClosing()
+	select {
+	case <-drained:
+		return c.finalizeClose()
+	default:
+		return ErrTransferActive
 	}
-	c.closed = true
-
-	if c.interfaceHandle != nil {
-		c.interfaceHandle.Close()
-		c.interfaceHandle = nil
-	}
-	var closeErr error
-	if c.config != nil {
-		closeErr = errors.Join(closeErr, c.config.Close())
-		c.config = nil
-	}
-	if c.device != nil {
-		closeErr = errors.Join(closeErr, c.device.Close())
-		c.device = nil
-	}
-	if c.context != nil {
-		closeErr = errors.Join(closeErr, c.context.Close())
-		c.context = nil
-	}
-	return closeErr
 }
 
-// ForceReset releases claimed resources and resets the device. It is a
-// last-resort fallback after the session context has been cancelled and a
-// bounded graceful shutdown has failed.
-func (c *Connection) ForceReset() error {
+// Shutdown cancels the connection-owned transfer context and waits until every
+// in-flight transfer has returned before releasing the USB resources.
+func (c *Connection) Shutdown(ctx context.Context) error {
+	drained := c.startClosing()
+	select {
+	case <-drained:
+		return c.finalizeClose()
+	default:
+	}
+	select {
+	case <-drained:
+		return c.finalizeClose()
+	case <-ctx.Done():
+		return fmt.Errorf("%w: %w", ErrShutdownTimeout, ctx.Err())
+	}
+}
+
+func (c *Connection) beginRead() (inEndpoint, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.closed || c.device == nil {
-		return nil
+	if c.closing || c.in == nil {
+		return nil, ErrClosed
 	}
-	if c.interfaceHandle != nil {
-		c.interfaceHandle.Close()
-		c.interfaceHandle = nil
+	c.active++
+	return c.in, nil
+}
+
+func (c *Connection) beginWrite() (outEndpoint, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.closing || c.out == nil {
+		return nil, ErrClosed
 	}
-	if c.config != nil {
-		if err := c.config.Close(); err != nil {
-			return err
+	c.active++
+	return c.out, nil
+}
+
+func (c *Connection) transferContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	opCtx, cancel := context.WithCancel(ctx)
+	stop := context.AfterFunc(c.lifetime, cancel)
+	return opCtx, func() {
+		stop()
+		cancel()
+	}
+}
+
+func (c *Connection) endTransfer() {
+	shouldFinalize := false
+	c.mu.Lock()
+	c.active--
+	if c.closing && c.active == 0 {
+		close(c.drained)
+		shouldFinalize = true
+	}
+	c.mu.Unlock()
+	if shouldFinalize {
+		_ = c.finalizeClose()
+	}
+}
+
+func (c *Connection) startClosing() <-chan struct{} {
+	c.mu.Lock()
+	first := !c.closing
+	if first {
+		c.closing = true
+		c.in = nil
+		c.out = nil
+		if c.active == 0 {
+			close(c.drained)
 		}
-		c.config = nil
 	}
-	return c.device.Reset()
+	drained := c.drained
+	c.mu.Unlock()
+	if first {
+		c.lifetimeCancel()
+	}
+	return drained
+}
+
+func (c *Connection) finalizeClose() error {
+	c.finalizeOnce.Do(func() {
+		c.mu.Lock()
+		resources := c.resources
+		c.resources = nil
+		c.mu.Unlock()
+
+		var closeErr error
+		if resources != nil {
+			closeErr = resources.Close()
+		}
+
+		c.mu.Lock()
+		c.closeErr = closeErr
+		c.mu.Unlock()
+		close(c.closeDone)
+	})
+	<-c.closeDone
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.closeErr
 }
