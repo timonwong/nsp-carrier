@@ -54,3 +54,9 @@ _Avoid_: Installed, installation succeeded, uploaded
 The read-only Goldleaf drive that projects the frozen catalog without exposing
 the host home directory or allowing filesystem mutation.
 _Avoid_: Home drive, shared folder
+
+**UI locale**:
+The language used by the desktop interface, initially English or Simplified
+Chinese; it does not change installer protocols, wire names, file names, paths,
+or diagnostic codes.
+_Avoid_: Protocol language, translated filename

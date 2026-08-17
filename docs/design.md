@@ -167,8 +167,12 @@ state into an installation claim.
 The Wails v2 UI provides file/folder addition, drag and drop, queue checkboxes,
 removal, clear, search, Start/Stop, connection and session state, unique-byte
 progress, structured logs, typed errors, and Light/Dark/Auto theme. The UI
-language is English. The application display name is `NSP Carrier` and its
-bundle ID is `im.theo.nsp-carrier`.
+supports English and Simplified Chinese (`zh-CN`). It follows the
+browser/system locale by default and exposes a persisted manual override from
+the top-right language menu. Translation resources are bundled with the app;
+backend error codes, protocol names, file names, paths, and diagnostics remain
+stable rather than being translated. The application display name is `NSP
+Carrier` and its bundle ID is `im.theo.nsp-carrier`.
 
 Settings persist theme, window geometry, recent file/folder directories, and
 UI preferences. The queue and absolute paths are not restored implicitly.

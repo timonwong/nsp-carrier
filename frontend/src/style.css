@@ -134,7 +134,8 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: none;
 .state-pill.busy .state-dot { background: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent); animation: pulse 1.6s ease-in-out infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
 
-.theme-wrap { position: relative; }
+.theme-wrap, .language-wrap { position: relative; }
+.language-button { width: 34px; min-width: 34px; padding: 0; }
 .icon-button {
   width: 34px; height: 34px; padding: 0; display: grid; place-items: center;
   border: 1px solid var(--line); border-radius: var(--radius-control);

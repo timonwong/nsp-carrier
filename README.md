@@ -34,6 +34,7 @@ Representative queue and transfer-progress state:
 - Start/Stop with a host-owned session lifecycle — a reconnect starts a
   fresh session and never claims transfer resumption.
 - Auto/Light/Dark appearance.
+- English and Simplified Chinese UI, selectable from the top-right language menu.
 
 The host reports only what it can observe: `FullyServed` means the selected
 profile's byte-coverage rule was satisfied, not that the title was installed.
