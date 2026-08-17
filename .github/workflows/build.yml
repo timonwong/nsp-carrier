@@ -82,6 +82,12 @@ jobs:
             printf 'Go files need formatting:\n%s\n' "$unformatted"
             exit 1
           fi
+          npm --prefix frontend run format:check
+
+      - name: Check Wails bindings
+        env:
+          WAILS_BIN: wails
+        run: npm --prefix frontend run bindings:check
 
       - name: Test Go code
         run: go test -count=1 ./...
