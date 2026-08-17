@@ -198,7 +198,6 @@ The DBI, Awoo, and Goldleaf protocol implementations were developed from
 observed wire behavior, using these upstream projects as behavioral
 references:
 
-- [`rashevskyv/dbi`](https://github.com/rashevskyv/dbi) — DBI0 reference
 - [`rashevskyv/dbibackend-qt`](https://github.com/rashevskyv/dbibackend-qt) — DBI backend reference
 - [`developersu/ns-usbloader`](https://github.com/developersu/ns-usbloader) — Awoo and Goldleaf wire references
 - [`Huntereb/Awoo-Installer`](https://github.com/Huntereb/Awoo-Installer) — Awoo reference
