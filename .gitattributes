@@ -1,1 +1,9 @@
 *.go text eol=lf
+
+# oxfmt treats line endings as canonical formatting on every platform.
+frontend/**/*.css text eol=lf
+frontend/**/*.html text eol=lf
+frontend/**/*.js text eol=lf
+frontend/**/*.json text eol=lf
+frontend/**/*.svelte text eol=lf
+frontend/**/*.ts text eol=lf

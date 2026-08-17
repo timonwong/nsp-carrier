@@ -10,6 +10,5 @@
     "strict": true,
     "moduleResolution": "bundler"
   },
-  "include": ["src/**/*.d.ts", "src/**/*.ts", "src/**/*.svelte", "wailsjs/**/*.d.ts"],
-  "references": [{"path": "./tsconfig.node.json"}]
+  "include": ["src/**/*.d.ts", "src/**/*.ts", "src/**/*.svelte", "wailsjs/**/*.d.ts"]
 }
