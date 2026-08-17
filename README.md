@@ -1,5 +1,7 @@
 # nsp-carrier
 
+[简体中文](README.cn.md) · English
+
 `nsp-carrier` is a Go host for NS installers, with a Wails v2 +
 Svelte/TypeScript desktop UI. It exposes selected local files through an
 explicitly selected DBI, Awoo USB, or Goldleaf profile.
