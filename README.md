@@ -4,7 +4,7 @@
 
 `nsp-carrier` is a Go host for NS installers, with a Wails v2 +
 Svelte/TypeScript desktop UI. It exposes selected local files through an
-explicitly selected DBI, Awoo USB, or Goldleaf profile.
+explicitly selected DBI, Awoo, or Goldleaf profile.
 
 The host reports only USB session and file-serving state that it can observe.
 It is not an MTP implementation, a Switch-side installer, or proof that a
@@ -21,7 +21,7 @@ Representative queue and transfer-progress state:
 - **DBI:** Gate 0 and the Wails USB MVP passed real-Switch validation. A
   reconnect starts a fresh serving session; it does not resume an interrupted
   device-side install.
-- **Awoo USB:** Awoo Installer 1.6.2 is `Verified` for the recorded acceptance
+- **Awoo:** Awoo Installer 1.6.2 is `Verified` for the recorded acceptance
   matrix, including real-device `.nsp`, `.nsz`, `.xci`, and `.xcz` transfers.
   Other versions remain protocol-family compatible until separately verified.
 - **Goldleaf:** Goldleaf 1.2.0 is `Verified` for the recorded acceptance
@@ -54,7 +54,7 @@ Basic flow:
 
 1. Add `.nsp`, `.nsz`, `.xci`, or `.xcz` files and folders to the queue
    (drag and drop works too).
-2. Pick the profile that matches your installer: DBI, Awoo USB, or Goldleaf.
+2. Pick the profile that matches your installer: DBI, Awoo, or Goldleaf.
 3. Start serving, then install from the installer on the Switch.
 4. Watch per-file progress in the app. `FullyServed` means the host sent every
    byte the installer asked for — not that the title was installed.

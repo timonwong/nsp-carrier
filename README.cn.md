@@ -2,7 +2,7 @@
 
 简体中文 · [English](README.md)
 
-`nsp-carrier` 是一个面向 NS 安装器的 Go 宿主（host），带有基于 Wails v2 + Svelte/TypeScript 的桌面 UI。它通过用户显式选择的 DBI、Awoo USB 或 Goldleaf profile 暴露选定的本地文件。
+`nsp-carrier` 是一个面向 NS 安装器的 Go 宿主（host），带有基于 Wails v2 + Svelte/TypeScript 的桌面 UI。它通过用户显式选择的 DBI、Awoo 或 Goldleaf profile 暴露选定的本地文件。
 
 宿主只报告其能够观测到的 USB 会话与文件服务状态。它既不是 MTP 实现，也不是 Switch 端安装器，更不能证明某个 title 已成功安装。
 
@@ -15,7 +15,7 @@
 ## 状态
 
 - **DBI：** Gate 0 与 Wails USB MVP 已通过真实 Switch 验证。重新连接会开启一个新的服务会话；它不会恢复被中断的设备端安装。
-- **Awoo USB：** Awoo Installer 1.6.2 在记录的验收矩阵中为 `Verified`（已验证），包括真实设备的 `.nsp`、`.nsz`、`.xci` 与 `.xcz` 传输。其他版本在单独验证之前仍视为协议族兼容（protocol-family compatible）。
+- **Awoo：** Awoo Installer 1.6.2 在记录的验收矩阵中为 `Verified`（已验证），包括真实设备的 `.nsp`、`.nsz`、`.xci` 与 `.xcz` 传输。其他版本在单独验证之前仍视为协议族兼容（protocol-family compatible）。
 - **Goldleaf：** Goldleaf 1.2.0 在记录的验收矩阵中为 `Verified`（已验证）。其他 0.10+ 版本在单独验证之前仍视为协议族兼容。
 - **发布：** 公开打包、签名、公证（notarisation）与安装器仍待办。
 
@@ -34,7 +34,7 @@ UI 支持文件与递归文件夹选择、拖放、显式 profile 选择、队�
 基本流程：
 
 1. 向队列添加 `.nsp`、`.nsz`、`.xci` 或 `.xcz` 文件与文件夹（也支持拖放）。
-2. 选择与你的安装器匹配的 profile：DBI、Awoo USB 或 Goldleaf。
+2. 选择与你的安装器匹配的 profile：DBI、Awoo 或 Goldleaf。
 3. 开始服务，然后在 Switch 的安装器中安装。
 4. 在应用中查看逐文件进度。`FullyServed`（已完整服务）表示宿主已发送安装器请求的每一个字节——并不表示 title 已安装。
 
