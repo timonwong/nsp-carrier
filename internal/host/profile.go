@@ -56,12 +56,6 @@ type Profile struct {
 
 var profileRegistry = []Profile{
 	{
-		ID: ProfileDBI, DisplayName: "DBI", ProtocolFamily: "DBI0",
-		Transport: TransportUSB, SupportedExtensions: []string{".nsp", ".nsz", ".xci", ".xcz"},
-		WireNamespace: NamespaceFlatBasename, FilesystemAccess: FilesystemNone,
-		CompatibleVersions: []string{}, AdapterAvailable: true,
-	},
-	{
 		ID: ProfileAwoo, DisplayName: "Awoo", ProtocolFamily: "Awoo USB",
 		Transport: TransportUSB, SupportedExtensions: []string{".nsp", ".nsz", ".xci", ".xcz"},
 		WireNamespace: NamespaceFlatBasename, FilesystemAccess: FilesystemNone,
@@ -72,6 +66,12 @@ var profileRegistry = []Profile{
 		Transport: TransportUSB, SupportedExtensions: []string{".nsp"},
 		WireNamespace: NamespaceVirtualCatalog, FilesystemAccess: FilesystemReadOnly,
 		CompatibleVersions: []string{"0.10+"}, VerifiedVersions: []string{"1.2.0"}, AdapterAvailable: true,
+	},
+	{
+		ID: ProfileDBI, DisplayName: "DBI", ProtocolFamily: "DBI0",
+		Transport: TransportUSB, SupportedExtensions: []string{".nsp", ".nsz", ".xci", ".xcz"},
+		WireNamespace: NamespaceFlatBasename, FilesystemAccess: FilesystemNone,
+		CompatibleVersions: []string{}, AdapterAvailable: true,
 	},
 }
 

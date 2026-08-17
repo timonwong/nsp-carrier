@@ -17,13 +17,6 @@ func TestProfileRegistryIsTheImmutableCapabilitySourceOfTruth(t *testing.T) {
 	profiles := host.Profiles()
 	want := []host.Profile{
 		{
-			ID: host.ProfileDBI, DisplayName: "DBI", ProtocolFamily: "DBI0",
-			Transport: host.TransportUSB, SupportedExtensions: []string{".nsp", ".nsz", ".xci", ".xcz"},
-			WireNamespace: host.NamespaceFlatBasename, FilesystemAccess: host.FilesystemNone,
-			CompatibleVersions: []string{}, VerifiedVersions: []string{}, KnownIncompatibleVersions: []string{},
-			AdapterAvailable: true,
-		},
-		{
 			ID: host.ProfileAwoo, DisplayName: "Awoo", ProtocolFamily: "Awoo USB",
 			Transport: host.TransportUSB, SupportedExtensions: []string{".nsp", ".nsz", ".xci", ".xcz"},
 			WireNamespace: host.NamespaceFlatBasename, FilesystemAccess: host.FilesystemNone,
@@ -35,6 +28,13 @@ func TestProfileRegistryIsTheImmutableCapabilitySourceOfTruth(t *testing.T) {
 			Transport: host.TransportUSB, SupportedExtensions: []string{".nsp"},
 			WireNamespace: host.NamespaceVirtualCatalog, FilesystemAccess: host.FilesystemReadOnly,
 			CompatibleVersions: []string{"0.10+"}, VerifiedVersions: []string{"1.2.0"}, KnownIncompatibleVersions: []string{},
+			AdapterAvailable: true,
+		},
+		{
+			ID: host.ProfileDBI, DisplayName: "DBI", ProtocolFamily: "DBI0",
+			Transport: host.TransportUSB, SupportedExtensions: []string{".nsp", ".nsz", ".xci", ".xcz"},
+			WireNamespace: host.NamespaceFlatBasename, FilesystemAccess: host.FilesystemNone,
+			CompatibleVersions: []string{}, VerifiedVersions: []string{}, KnownIncompatibleVersions: []string{},
 			AdapterAvailable: true,
 		},
 	}
