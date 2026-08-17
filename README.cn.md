@@ -73,7 +73,7 @@ brew install libusb
 
 #### Windows
 
-Switch 以裸 USB 设备的形式暴露，Windows 需要先安装兼容的 USB 驱动，`nsp-carrier` 才能看到它。使用 [Zadig](https://zadig.akeo.ie/) 安装：
+Switch 以裸 USB 设备的形式暴露，Windows 需要兼容的 USB 驱动，`nsp-carrier` 才能看到它。Windows 10 及更高版本可能已经具备可用的系统 WinUSB 绑定，可以先直接启动 `nsp-carrier`；只有设备未被识别或驱动绑定不兼容时，才需要使用 [Zadig](https://zadig.akeo.ie/)：
 
 1. 从 <https://zadig.akeo.ie/> 下载并运行 Zadig。
 2. 用 USB 线把 Switch 连接到 PC。

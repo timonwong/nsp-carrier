@@ -95,7 +95,9 @@ brew install libusb
 #### Windows
 
 The Switch exposes itself as a raw USB device, so Windows needs a compatible
-USB driver before `nsp-carrier` can see it. Install it with
+USB driver before `nsp-carrier` can see it. Windows 10 and later may already
+have a suitable built-in WinUSB binding, so try starting `nsp-carrier` first.
+If it cannot see the device or the binding is incompatible, use
 [Zadig](https://zadig.akeo.ie/):
 
 1. Download and run Zadig from <https://zadig.akeo.ie/>.
