@@ -1,4 +1,7 @@
-# nsp-carrier
+<p align="center">
+  <img src="docs/assets/nsp-carrier-logo.svg" alt="nsp-carrier logo" width="72" style="vertical-align: middle" />
+  <strong style="font-size: 28px; vertical-align: middle">nsp carrier</strong>
+</p>
 
 简体中文 · [English](README.md)
 
