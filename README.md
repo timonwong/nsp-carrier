@@ -24,7 +24,10 @@ Representative queue and transfer-progress state:
 ## Features
 
 - Serves files over USB through an explicitly selected installer profile:
-  Awoo, Goldleaf 0.10+, Sphaira 1.0+, or DBI.
+  - [Awoo](https://github.com/Huntereb/Awoo-Installer)
+  - [Goldleaf 0.10+](https://github.com/XorTroll/Goldleaf)
+  - [Sphaira 1.0+](https://github.com/NaGaa95/sphaira)
+  - DBI
 - File and recursive folder selection, with drag and drop.
 - Queue with search and duplicate-basename validation.
 - Per-file unique-byte progress, bounded activity logs, and typed errors.

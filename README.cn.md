@@ -18,7 +18,11 @@
 
 ## 功能
 
-- 通过显式选择的安装器 profile（Awoo、Goldleaf 0.10+、Sphaira 1.0+ 或 DBI）经 USB 提供文件服务。
+- 通过显式选择的安装器 profile 经 USB 提供文件服务：
+  - [Awoo](https://github.com/Huntereb/Awoo-Installer)
+  - [Goldleaf 0.10+](https://github.com/XorTroll/Goldleaf)
+  - [Sphaira 1.0+](https://github.com/NaGaa95/sphaira)
+  - DBI
 - 文件与递归文件夹选择，支持拖放。
 - 队列支持搜索与重复文件名校验。
 - 逐文件唯一字节进度、有界活动日志与类型化错误。
