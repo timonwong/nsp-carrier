@@ -75,7 +75,7 @@ shared seekable file handle are not acceptable designs.
 - read-only serving from existing split-file chunk directories
 - public distribution, bundled libusb, codesigning, notarization, auto-update
 - validated Windows and Linux support
-- i18n
+- i18n (English + Simplified Chinese UI implemented; additional locales deferred)
 
 ## Out of scope
 

@@ -4,6 +4,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import App from './App.svelte'
 import {GetSnapshot, SetProfile} from '../wailsjs/go/main/DesktopApp'
 import {EventsOn} from '../wailsjs/runtime/runtime'
+import {localePreference} from './i18n'
 
 vi.mock('../wailsjs/go/main/DesktopApp', () => ({
   ChooseFiles: vi.fn(), ChooseFolder: vi.fn(), ClearQueue: vi.fn(),
@@ -52,6 +53,7 @@ describe('installer profile UI', () => {
     vi.mocked(GetSnapshot).mockResolvedValue(baseSnapshot as never)
     vi.mocked(EventsOn).mockReset()
     localStorage.clear()
+    localePreference.set(undefined)
   })
   afterEach(() => cleanup())
 
@@ -92,6 +94,17 @@ describe('installer profile UI', () => {
     await fireEvent.click(screen.getByRole('menuitemradio', {name: 'Dark'}))
     expect(document.documentElement.dataset.theme).toBe('dark')
     expect(localStorage.getItem('nsp-carrier-theme')).toBe('dark')
+  })
+
+  it('switches the UI locale from the language menu and persists the override', async () => {
+    render(App)
+    const trigger = await screen.findByRole('button', {name: 'Change language'})
+    await fireEvent.click(trigger)
+    expect(screen.getByRole('menuitemradio', {name: 'System'}).getAttribute('aria-checked')).toBe('true')
+    await fireEvent.click(screen.getByRole('menuitemradio', {name: '简体中文'}))
+    expect(localStorage.getItem('nsp-carrier-locale')).toBe('zh-CN')
+    expect(screen.getByText('协议')).toBeTruthy()
+    expect(screen.getByRole('button', {name: '切换语言'})).toBeTruthy()
   })
 
   it('separates session state from the current serving action', async () => {
