@@ -23,12 +23,14 @@ var (
 type RangeReporter interface {
 	Requested(sourceID string, offset uint64, size uint64)
 	Served(sourceID string, offset uint64, size uint32) error
+	Closed(sourceID string)
 }
 
 type discardReporter struct{}
 
 func (discardReporter) Requested(string, uint64, uint64)    {}
 func (discardReporter) Served(string, uint64, uint32) error { return nil }
+func (discardReporter) Closed(string)                       {}
 
 type Server struct {
 	catalog  *files.Catalog
@@ -145,7 +147,11 @@ func (s *Server) serveFile(ctx context.Context, link transport.Duplex, index uin
 		offset, requested := packet.Offset(), packet.Size()
 		if offset == 0 && requested == 0 && packet.Arg5 == 0 {
 			s.reportInbound("close", packet, protocoltrace.Record{SourceID: entry.ID, Index: index})
-			return s.writeResult(ctx, link, "close_ack", ResultOK, 0, 0, protocoltrace.Record{SourceID: entry.ID, Index: index})
+			if err := s.writeResult(ctx, link, "close_ack", ResultOK, 0, 0, protocoltrace.Record{SourceID: entry.ID, Index: index}); err != nil {
+				return err
+			}
+			s.reporter.Closed(entry.ID)
+			return nil
 		}
 		s.reportInbound("range", packet, protocoltrace.Record{
 			SourceID: entry.ID, Index: index, Offset: offset, Size: uint64(requested),

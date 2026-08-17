@@ -55,10 +55,12 @@ payload CRC32C, followed by exactly that many bytes. Offset beyond EOF,
 arithmetic overflow, non-close zero size, and oversized ranges are rejected.
 
 Only successfully written payload bytes enter progress. Repeated and
-out-of-order intervals are unioned, and a source is `FullyServed` only when
-that union covers the entire frozen source. File close does not override
-partial progress. Source identity, size, and modification time are rechecked
-for every range; mutation and unexpected EOF fail the session.
+out-of-order intervals are unioned. Because Sphaira consumes the source through
+random-access reads, it does not necessarily request every physical source
+byte. A source is `FullyServed` only after file close is successfully ACKed and
+the served union covers every requested interval. File close does not override
+an incomplete request. Source identity, size, and modification time are
+rechecked for every range; mutation and unexpected EOF fail the session.
 
 Stop uses context cancellation and bounded USB shutdown. Cable removal is
 `Disconnected`, not completion or protocol failure. Reconnect creates a fresh

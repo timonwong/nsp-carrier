@@ -27,6 +27,7 @@ type fileProgress struct {
 	total                 uint64
 	requestedIntervals    []interval
 	servedIntervals       []interval
+	closed                bool
 	wireBytes             uint64
 	rangeRequests         uint64
 	nonSequentialRequests uint64
@@ -39,17 +40,32 @@ type fileProgress struct {
 }
 
 type Progress struct {
-	mu                    sync.Mutex
-	files                 map[string]*fileProgress
-	completeWhenRequested bool
+	mu             sync.Mutex
+	files          map[string]*fileProgress
+	completionRule completionRule
 }
+
+type completionRule uint8
+
+const (
+	completeWholeSource completionRule = iota
+	completeRequestedRanges
+	completeClosedRequestedRanges
+)
 
 func NewProgress(catalog *files.Catalog, profile ProfileID) *Progress {
 	tracked := make(map[string]*fileProgress, len(catalog.Entries()))
 	for _, entry := range catalog.Entries() {
 		tracked[entry.ID] = &fileProgress{total: uint64(entry.Size)}
 	}
-	return &Progress{files: tracked, completeWhenRequested: profile == ProfileAwoo}
+	rule := completeWholeSource
+	switch profile {
+	case ProfileAwoo:
+		rule = completeRequestedRanges
+	case ProfileSphaira:
+		rule = completeClosedRequestedRanges
+	}
+	return &Progress{files: tracked, completionRule: rule}
 }
 
 func (p *Progress) Requested(sourceID string, offset uint64, size uint64) {
@@ -103,6 +119,14 @@ func (p *Progress) Served(sourceID string, offset uint64, size uint32) error {
 	return nil
 }
 
+func (p *Progress) Closed(sourceID string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if value := p.files[sourceID]; value != nil {
+		value.closed = true
+	}
+}
+
 func mergeInterval(intervals []interval, merged interval) []interval {
 	if merged.start >= merged.end {
 		return intervals
@@ -154,8 +178,11 @@ func (p *Progress) Snapshots(terminal bool, failed bool) map[string]ProgressSnap
 			unique += current.end - current.start
 		}
 		fullyServed := unique == value.total && value.total > 0
-		if p.completeWhenRequested {
+		switch p.completionRule {
+		case completeRequestedRanges:
 			fullyServed = value.hasRequest && intervalsCover(value.servedIntervals, value.requestedIntervals)
+		case completeClosedRequestedRanges:
+			fullyServed = value.closed && value.hasRequest && intervalsCover(value.servedIntervals, value.requestedIntervals)
 		}
 		state := FileQueued
 		switch {

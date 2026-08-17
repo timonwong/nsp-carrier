@@ -92,7 +92,7 @@ func TestRunnerServesCompleteSphairaSessionAtTheHostBoundary(t *testing.T) {
 	}
 	entry := catalog.Entries()[1]
 	progress := terminal.Progress[entry.ID]
-	if terminal.State != host.StateCompleted || progress.State != host.FileInterrupted ||
+	if terminal.State != host.StateCompleted || progress.State != host.FileFullyServed ||
 		progress.UniqueServedBytes != 6 || progress.RangeRequests != 1 {
 		t.Fatalf("terminal event = %#v", terminal)
 	}

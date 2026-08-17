@@ -128,3 +128,48 @@ func TestProgressKeepsGoldleafPartialReadsPartial(t *testing.T) {
 		t.Fatalf("terminal Goldleaf partial-read state = %q, want %q", state, host.FileInterrupted)
 	}
 }
+
+func TestProgressCompletesSphairaRequestedRangesOnlyAfterFileClose(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "game.nsp")
+	if err := os.WriteFile(path, make([]byte, 10), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := files.BuildCatalog([]string{path}, host.AllSupportedExtensions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	sourceID := catalog.Entries()[0].ID
+	progress := host.NewProgress(catalog, host.ProfileSphaira)
+	progress.Requested(sourceID, 4, 4)
+	if err := progress.Served(sourceID, 4, 4); err != nil {
+		t.Fatal(err)
+	}
+	if state := progress.Snapshots(false, false)[sourceID].State; state != host.FileServing {
+		t.Fatalf("open Sphaira file state = %q, want %q", state, host.FileServing)
+	}
+	progress.Closed(sourceID)
+	if state := progress.Snapshots(true, false)[sourceID].State; state != host.FileFullyServed {
+		t.Fatalf("closed Sphaira file state = %q, want %q", state, host.FileFullyServed)
+	}
+}
+
+func TestProgressKeepsSphairaIncompleteRequestedRangeInterruptedAfterClose(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "game.nsp")
+	if err := os.WriteFile(path, make([]byte, 10), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := files.BuildCatalog([]string{path}, host.AllSupportedExtensions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	sourceID := catalog.Entries()[0].ID
+	progress := host.NewProgress(catalog, host.ProfileSphaira)
+	progress.Requested(sourceID, 2, 6)
+	if err := progress.Served(sourceID, 2, 3); err != nil {
+		t.Fatal(err)
+	}
+	progress.Closed(sourceID)
+	if state := progress.Snapshots(true, false)[sourceID].State; state != host.FileInterrupted {
+		t.Fatalf("incomplete closed Sphaira file state = %q, want %q", state, host.FileInterrupted)
+	}
+}
