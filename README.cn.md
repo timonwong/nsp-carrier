@@ -1,5 +1,7 @@
 # nsp-carrier
 
+简体中文 · [English](README.md)
+
 `nsp-carrier` 是一个面向 NS 安装器的 Go 宿主（host），带有基于 Wails v2 + Svelte/TypeScript 的桌面 UI。它通过用户显式选择的 DBI、Awoo USB 或 Goldleaf profile 暴露选定的本地文件。
 
 宿主只报告其能够观测到的 USB 会话与文件服务状态。它既不是 MTP 实现，也不是 Switch 端安装器，更不能证明某个 title 已成功安装。
