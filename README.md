@@ -19,25 +19,19 @@ Representative queue and transfer-progress state:
 
 ![NSP Carrier serving files with transfer progress](docs/assets/nsp-carrier-transfer-progress.png)
 
-## Status
+## Features
 
-- **DBI:** Gate 0 and the Wails USB MVP passed real-Switch validation. A
-  reconnect starts a fresh serving session; it does not resume an interrupted
-  device-side install.
-- **Awoo:** Awoo Installer 1.6.2 is `Verified` for the recorded acceptance
-  matrix, including real-device `.nsp`, `.nsz`, `.xci`, and `.xcz` transfers.
-  Other versions remain protocol-family compatible until separately verified.
-- **Goldleaf:** Goldleaf 1.2.0 is `Verified` for the recorded acceptance
-  matrix. Other 0.10+ versions are protocol-family compatible until separately
-  verified.
-- **Distribution:** Public packaging, signing, notarisation, and installers
-  are deferred.
+- Serves files over USB through an explicitly selected installer profile:
+  DBI, Awoo, or Goldleaf 0.10+.
+- File and recursive folder selection, with drag and drop.
+- Queue with search and duplicate-basename validation.
+- Per-file unique-byte progress, bounded activity logs, and typed errors.
+- Start/Stop with a host-owned session lifecycle — a reconnect starts a
+  fresh session and never claims transfer resumption.
+- Auto/Light/Dark appearance.
 
-The UI supports file and recursive folder selection, drag and drop, explicit
-profile selection, queue search and duplicate-basename validation, Start/Stop,
-Go-owned session state, per-file unique-byte progress, bounded activity logs,
-typed errors, and Auto/Light/Dark appearance. `FullyServed` means the host
-sent every byte requested for a file; it does not mean the device installed it.
+The host reports only what it can observe: `FullyServed` means every byte the
+installer requested was sent, not that the title was installed.
 
 ## Getting started
 
