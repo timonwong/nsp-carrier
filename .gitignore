@@ -1,5 +1,8 @@
 .DS_Store
 .agents/
+/.playwright-cli/
+/designs/
+/skills-lock.json
 .idea/
 .vscode/
 
