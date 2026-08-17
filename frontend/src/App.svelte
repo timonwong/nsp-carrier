@@ -130,7 +130,11 @@
   }
 
   function statusLabel(status: string): string {
-    return status.replace(/([a-z])([A-Z])/g, '$1 $2')
+    switch (status) {
+      case 'NotRequested': return 'Skipped by Installer'
+      case 'Requested': return 'Requested by Installer'
+      default: return status.replace(/([a-z])([A-Z])/g, '$1 $2')
+    }
   }
 
   function formatExtensions(extensions: string[]): string {
