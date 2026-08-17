@@ -90,7 +90,7 @@ USB driver before `nsp-carrier` can see it. Install it with
 5. Select the Switch from the dropdown — the vendor ID is `057E` (Nintendo)
    and the product often appears as `DBI`, `USB composite device`, or
    `057E:3000`. Choose the matching entry.
-6. Pick **WinUSB** as the target driver (or *libusbK* if WinUSB is not
+6. Pick **libusbK** as the target driver (or *WinUSB* if libusbK is not
    available).
 7. Click *Replace Driver* (or *Install Driver*) and wait for it to finish.
 8. Start `nsp-carrier` and confirm it sees the device before serving.
