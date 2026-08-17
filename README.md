@@ -36,15 +36,40 @@ Go-owned session state, per-file unique-byte progress, bounded activity logs,
 typed errors, and Auto/Light/Dark appearance. `FullyServed` means the host
 sent every byte requested for a file; it does not mean the device installed it.
 
-## Further reading
+## Getting started
 
-- [Architecture design](docs/design.md) and [roadmap](docs/roadmap.md)
-- [DBI protocol notes](docs/dbi0-protocol.md), [Awoo protocol notes](docs/awoo-usb-protocol.md),
-  and [Goldleaf protocol notes](docs/goldleaf-usb-protocol.md)
-- [DBI Gate 0](docs/gate0.md), [Awoo gate](docs/awoo-gate.md), and
-  [Goldleaf gate](docs/goldleaf-gate.md)
+`nsp-carrier` is a desktop app. It serves the files you select to an
+installer running on your Switch over USB; it never writes to the Switch, so
+installation always happens from the installer's side.
 
-## Build prerequisites
+You need:
+
+- a Switch running a matching installer in USB mode — DBI, Awoo Installer
+  1.6.2, or Goldleaf 0.10+;
+- a USB cable between the PC and the Switch;
+- a copy of the app. Public installers are not shipped yet, so for now build
+  it from source (see [Developing](#developing)) or use a CI build.
+
+Basic flow:
+
+1. Add `.nsp`, `.nsz`, `.xci`, or `.xcz` files and folders to the queue
+   (drag and drop works too).
+2. Pick the profile that matches your installer: DBI, Awoo USB, or Goldleaf.
+3. Start serving, then install from the installer on the Switch.
+4. Watch per-file progress in the app. `FullyServed` means the host sent every
+   byte the installer asked for — not that the title was installed.
+
+A file the selected profile cannot serve blocks Start with a clear
+validation error rather than being silently skipped. On Windows, configure a
+compatible USB driver (such as WinUSB) for the Switch before the app can see
+it.
+
+## Developing
+
+Everything below is for building or testing `nsp-carrier` from source; end
+users don't need it.
+
+### Build prerequisites
 
 On macOS, install the CGO and frontend dependencies:
 
@@ -57,7 +82,7 @@ make ui-install
 `make check` runs the Go and frontend tests, race checks, fuzz smoke tests,
 static analysis, and local builds.
 
-## Developer USB CLI
+### Developer USB CLI
 
 Build and run the retained diagnostics CLI with local content paths:
 
@@ -89,7 +114,7 @@ and must never be committed.
 Passing automated tests or compiling this CLI does not pass a real-device
 gate; each profile's acceptance document remains independently authoritative.
 
-## Desktop app
+### Desktop app
 
 Install the pinned Wails v2 CLI and verify the local macOS toolchain:
 
@@ -109,7 +134,7 @@ The bundle is written to `build/bin/NSP Carrier.app`. The local bundle is
 unsigned; public signing, notarisation, and installers remain deferred. The
 bundle identifier is `im.theo.nsp-carrier`.
 
-## Continuous integration
+### Continuous integration
 
 GitHub Actions builds and checks two desktop targets for pull requests, pushes
 to `main`, and manual runs:
@@ -123,6 +148,14 @@ signed after bundling. These CI artifacts are not publicly code-signed or
 notarised. Windows users must configure a compatible USB driver such as
 WinUSB separately. Real-device acceptance is recorded on macOS arm64; Linux
 is not built or supported.
+
+### Further reading
+
+- [Architecture design](docs/design.md) and [roadmap](docs/roadmap.md)
+- [DBI protocol notes](docs/dbi0-protocol.md), [Awoo protocol notes](docs/awoo-usb-protocol.md),
+  and [Goldleaf protocol notes](docs/goldleaf-usb-protocol.md)
+- [DBI Gate 0](docs/gate0.md), [Awoo gate](docs/awoo-gate.md), and
+  [Goldleaf gate](docs/goldleaf-gate.md)
 
 ## License
 

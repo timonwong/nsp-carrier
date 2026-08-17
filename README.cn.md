@@ -19,13 +19,30 @@
 
 UI 支持文件与递归文件夹选择、拖放、显式 profile 选择、队列搜索与重复文件名校验、开始/停止、由 Go 持有的会话状态、逐文件唯一字节进度、有界活动日志、类型化错误以及自动/浅色/深色外观。`FullyServed`（已完整服务）表示宿主已发送某个文件被请求的每一个字节；它并不表示设备已安装该文件。
 
-## 延伸阅读
+## 快速开始
 
-- [架构设计](docs/design.md)与[路线图](docs/roadmap.md)
-- [DBI 协议说明](docs/dbi0-protocol.md)、[Awoo 协议说明](docs/awoo-usb-protocol.md)与[Goldleaf 协议说明](docs/goldleaf-usb-protocol.md)
-- [DBI Gate 0](docs/gate0.md)、[Awoo gate](docs/awoo-gate.md)与[Goldleaf gate](docs/goldleaf-gate.md)
+`nsp-carrier` 是一款桌面应用。它通过 USB 把你选定的文件提供给 Switch 上运行的安装器；它绝不会写入 Switch，因此安装始终在安装器一侧进行。
 
-## 构建前置条件
+你需要：
+
+- 一台在 USB 模式下运行匹配安装器的 Switch —— DBI、Awoo Installer 1.6.2 或 Goldleaf 0.10+；
+- 一根连接 PC 与 Switch 的 USB 线；
+- 一份应用副本。目前还没有公开安装包，暂时需要从源码构建（见[开发](#开发)）或使用 CI 构建产物。
+
+基本流程：
+
+1. 向队列添加 `.nsp`、`.nsz`、`.xci` 或 `.xcz` 文件与文件夹（也支持拖放）。
+2. 选择与你的安装器匹配的 profile：DBI、Awoo USB 或 Goldleaf。
+3. 开始服务，然后在 Switch 的安装器中安装。
+4. 在应用中查看逐文件进度。`FullyServed`（已完整服务）表示宿主已发送安装器请求的每一个字节——并不表示 title 已安装。
+
+所选 profile 无法服务的文件会以明确的校验错误阻止 Start，而不会被静默跳过。在 Windows 上，应用能看到 Switch 之前，需要为其配置兼容的 USB 驱动（例如 WinUSB）。
+
+## 开发
+
+以下内容面向从源码构建或测试 `nsp-carrier` 的人；最终用户无需关心。
+
+### 构建前置条件
 
 在 macOS 上安装 CGO 与前端依赖：
 
@@ -37,7 +54,7 @@ make ui-install
 
 `make check` 运行 Go 与前端测试、竞态检查、fuzz 冒烟测试、静态分析以及本地构建。
 
-## 开发者 USB CLI
+### 开发者 USB CLI
 
 使用本地内容路径构建并运行保留的诊断 CLI：
 
@@ -56,7 +73,7 @@ CLI 会递归构建并冻结 catalog，等待 USB 设备 `057e:3000`，发现恰
 
 通过自动化测试或编译此 CLI 并不等于通过真实设备 gate；每个 profile 的验收文档仍各自具有权威性。
 
-## 桌面应用
+### 桌面应用
 
 安装固定的 Wails v2 CLI 并验证本地 macOS 工具链：
 
@@ -74,7 +91,7 @@ make app-build
 
 产物写入 `build/bin/NSP Carrier.app`。本地 bundle 未签名；公开签名、公证与安装器仍待办。Bundle 标识符为 `im.theo.nsp-carrier`。
 
-## 持续集成
+### 持续集成
 
 GitHub Actions 为拉取请求、推送到 `main` 及手动运行构建并检查两个桌面目标：
 
@@ -82,6 +99,12 @@ GitHub Actions 为拉取请求、推送到 `main` 及手动运行构建并检查
 - macOS arm64（Apple Silicon runner）。
 
 每个任务上传七天期的 zip 产物与 SHA-256 校验和。Windows zip 包含 `libusb-1.0.dll`；macOS 应用内嵌 `libusb`，并在打包后进行 ad-hoc 签名。这些 CI 产物未进行公开代码签名或公证。Windows 用户必须另行配置兼容的 USB 驱动（例如 WinUSB）。真实设备验收记录在 macOS arm64 上完成；不构建或支持 Linux。
+
+### 延伸阅读
+
+- [架构设计](docs/design.md)与[路线图](docs/roadmap.md)
+- [DBI 协议说明](docs/dbi0-protocol.md)、[Awoo 协议说明](docs/awoo-usb-protocol.md)与[Goldleaf 协议说明](docs/goldleaf-usb-protocol.md)
+- [DBI Gate 0](docs/gate0.md)、[Awoo gate](docs/awoo-gate.md)与[Goldleaf gate](docs/goldleaf-gate.md)
 
 ## 许可
 
