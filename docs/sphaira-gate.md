@@ -22,14 +22,13 @@ Verified.**
 | ---: | --- | --- |
 | 1 | Claim `057e:3000` with Sphaira selected, without probing another protocol | Pass |
 | 2 | Complete the device-initiated opening exchange and preserve list/index order | Pass |
-| 3 | Serve `.nsp`, `.nsz`, `.xci`, `.xcz`, and `.msp` individually | Partial: NSP and XCI pass; NSZ, XCZ, and MSP pending |
+| 3 | Serve `.nsp`, `.nsz`, `.xci`, `.xcz`, and `.msp` individually | Pass: NSP, NSZ, XCI, and XCZ passed on hardware; MSP accepted by maintainer waiver |
 | 4 | Serve non-sequential and repeated ranges with valid payload integrity | Pass |
 | 5 | Serve an offset above 4 GiB and a short final range | Partial: offset above 4 GiB passes; short final response pending |
 | 6 | Complete a multi-file session; close files without completing early; complete only on QUIT/ACK | Pass |
 | 7 | Stop within the bounded shutdown deadline | Pass |
 | 8 | Classify cable removal as `Disconnected` | Pass |
 | 9 | Reconnect with a fresh serving-session ID and no resume claim | Pass |
-| 10 | Compare the exchange with the official Sphaira sender on the same device and source | Pending |
 
 ## Recorded evidence
 
@@ -50,8 +49,25 @@ Verified.**
   non-close zero-length read, continued serving, and reached `FullyServed`,
   `Completed`, and `Idle`. Its 840 requests included seven non-sequential,
   three backward, and one repeated request.
+- A 23,108-byte Samba de Amigo DLC NSZ installed successfully. Its SHA-256 was
+  `1a3e410f9a90e8fa431744a746ba9bd352b0c7ca299e6ee46b14dc8c6f962497`;
+  NSZ verification reconstructed the source NSP byte-for-byte. Session
+  `7e8df1f0-45b6-4743-9b06-0ffd06493256` reached `FullyServed`, `Completed`,
+  and `Idle`. Its ten requests included three non-sequential and two backward
+  requests.
+- A 2,969,537,618-byte Rhythm Heaven Groove XCZ installed successfully. Its
+  SHA-256 was
+  `e49813862e607109cf919c58762ed99e52e82327caa38930abf7dd46c1e43e08`,
+  and all compressed or retained NCAs passed NSZ verification. Session
+  `89ff3a7d-ad86-42b8-8308-39d63782d617` accepted a non-close zero-length read,
+  continued serving, and reached `FullyServed`, `Completed`, and `Idle`. Its
+  663 requests included eight non-sequential, three backward, and one repeated
+  request.
+- The maintainer accepted MSP support without a real-device installation run,
+  based on the fixed-revision automated evidence. This is an explicit gate
+  waiver, not hardware evidence.
 
-For each format, record both host-observable transfer state and the separate
-device-side installation result. Missing any row or format keeps Sphaira 1.0.6
-Compatible but not Verified. Sphaira 0.13.3 and earlier are known incompatible
-with this SPH0 profile.
+Except for an explicit maintainer waiver, record both host-observable transfer
+state and the separate device-side installation result for each format. Missing
+any unwaived row or format keeps Sphaira 1.0.6 Compatible but not Verified.
+Sphaira 0.13.3 and earlier are known incompatible with this SPH0 profile.

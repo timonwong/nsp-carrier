@@ -42,7 +42,9 @@
   passed; exact version 1.2.0 verified)
 - Sphaira 1.0+ SPH0 adapter for `.nsp`, `.nsz`, `.xci`, `.xcz`, and `.msp`
   (automated fixed-revision evidence implemented; Sphaira 1.0.6 real-device
-  matrix pending, so no exact version is verified)
+  NSP, NSZ, XCI, XCZ, Stop, cable-removal, reconnect, and multi-file checks
+  passed; MSP was accepted by maintainer waiver; short-final-range remains, so
+  no exact version is verified)
 - scripted protocol fixtures and separate real-device acceptance matrices
 - no automatic protocol detection on the shared `057e:3000` USB identity
 
