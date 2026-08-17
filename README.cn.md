@@ -35,7 +35,7 @@
 
 - 一台在 USB 模式下运行匹配安装器的 Switch —— DBI、Awoo Installer 1.6.2 或 Goldleaf 0.10+；
 - 一根连接 PC 与 Switch 的 USB 线；
-- 一份应用副本。目前还没有公开安装包，暂时需要从源码构建（见[开发](#开发)）或使用 CI 构建产物。
+- 一份应用副本——从 [Releases](https://github.com/timonwong/nsp-carrier/releases) 页面下载（见[安装](#安装)）。
 
 基本流程：
 
@@ -50,7 +50,16 @@
 
 ## 安装
 
-### macOS
+从 [Releases](https://github.com/timonwong/nsp-carrier/releases) 页面下载应用：
+
+- **macOS：** 解压 `nsp-carrier-macos-arm64.zip`，将 `NSP Carrier.app` 移入 Applications。
+- **Windows：** 解压 `nsp-carrier-windows-amd64.zip`，运行 `nsp-carrier.exe`。
+
+发布产物未做代码签名与公证。macOS 首次打开时，用右键 → 打开（Open）来绕过 Gatekeeper。
+
+### 平台前置条件
+
+#### macOS
 
 macOS 通过 `libusb` 访问 USB。使用 Homebrew 安装：
 
@@ -58,7 +67,7 @@ macOS 通过 `libusb` 访问 USB。使用 Homebrew 安装：
 brew install libusb
 ```
 
-### Windows
+#### Windows
 
 Switch 以裸 USB 设备的形式暴露，Windows 需要先安装兼容的 USB 驱动，`nsp-carrier` 才能看到它。使用 [Zadig](https://zadig.akeo.ie/) 安装：
 

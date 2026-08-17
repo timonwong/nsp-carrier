@@ -46,8 +46,9 @@ You need:
 - a Switch running a matching installer in USB mode — DBI, Awoo Installer
   1.6.2, or Goldleaf 0.10+;
 - a USB cable between the PC and the Switch;
-- a copy of the app. Public installers are not shipped yet, so for now build
-  it from source (see [Developing](#developing)) or use a CI build.
+- a copy of the app — download it from the
+  [Releases](https://github.com/timonwong/nsp-carrier/releases) page (see
+  [Installing](#installing)).
 
 Basic flow:
 
@@ -66,7 +67,20 @@ Platform setup — `libusb` on macOS, a USB driver on Windows — is covered in
 
 ## Installing
 
-### macOS
+Download the app from the
+[Releases](https://github.com/timonwong/nsp-carrier/releases) page:
+
+- **macOS:** unzip `nsp-carrier-macos-arm64.zip` and move `NSP Carrier.app`
+  into Applications.
+- **Windows:** unzip `nsp-carrier-windows-amd64.zip` and run
+  `nsp-carrier.exe`.
+
+Releases are not code-signed or notarised. On macOS, open the app the first
+time with right-click → Open to bypass Gatekeeper.
+
+### Platform prerequisites
+
+#### macOS
 
 macOS uses `libusb` for USB access. Install it with Homebrew:
 
@@ -74,7 +88,7 @@ macOS uses `libusb` for USB access. Install it with Homebrew:
 brew install libusb
 ```
 
-### Windows
+#### Windows
 
 The Switch exposes itself as a raw USB device, so Windows needs a compatible
 USB driver before `nsp-carrier` can see it. Install it with
