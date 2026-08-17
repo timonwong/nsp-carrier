@@ -1,6 +1,12 @@
-# nsp-carrier
+<p align="center">
+  <img src="docs/assets/nsp-carrier-logo.svg" alt="NSP Carrier logo" width="96" />
+  <br />
+  <strong style="font-size: 32px">NSP Carrier</strong>
+</p>
 
-`nsp-carrier` 是一个面向 NS 安装器的 Go 宿主（host），带有基于 Wails v2 + Svelte/TypeScript 的桌面 UI。它通过用户显式选择的 DBI、Awoo USB 或 Goldleaf profile 暴露选定的本地文件。
+简体中文 · [English](README.md)
+
+`nsp-carrier` 是一个面向 NS 安装器的 Go 宿主（host），带有基于 Wails v2 + Svelte/TypeScript 的桌面 UI。它通过用户显式选择的 DBI、Awoo 或 Goldleaf profile 暴露选定的本地文件。
 
 宿主只报告其能够观测到的 USB 会话与文件服务状态。它既不是 MTP 实现，也不是 Switch 端安装器，更不能证明某个 title 已成功安装。
 
@@ -10,22 +16,66 @@
 
 ![NSP Carrier 提供文件服务并显示传输进度](docs/assets/nsp-carrier-transfer-progress.png)
 
-## 状态
+## 功能
 
-- **DBI：** Gate 0 与 Wails USB MVP 已通过真实 Switch 验证。重新连接会开启一个新的服务会话；它不会恢复被中断的设备端安装。
-- **Awoo USB：** Awoo Installer 1.6.2 在记录的验收矩阵中为 `Verified`（已验证），包括真实设备的 `.nsp`、`.nsz`、`.xci` 与 `.xcz` 传输。其他版本在单独验证之前仍视为协议族兼容（protocol-family compatible）。
-- **Goldleaf：** Goldleaf 1.2.0 在记录的验收矩阵中为 `Verified`（已验证）。其他 0.10+ 版本在单独验证之前仍视为协议族兼容。
-- **发布：** 公开打包、签名、公证（notarisation）与安装器仍待办。
+- 通过显式选择的安装器 profile（DBI、Awoo 或 Goldleaf 0.10+）经 USB 提供文件服务。
+- 文件与递归文件夹选择，支持拖放。
+- 队列支持搜索与重复文件名校验。
+- 逐文件唯一字节进度、有界活动日志与类型化错误。
+- 开始/停止，宿主持有会话生命周期——重新连接会开启全新会话，绝不声称恢复传输。
+- 自动/浅色/深色外观。
 
-UI 支持文件与递归文件夹选择、拖放、显式 profile 选择、队列搜索与重复文件名校验、开始/停止、由 Go 持有的会话状态、逐文件唯一字节进度、有界活动日志、类型化错误以及自动/浅色/深色外观。`FullyServed`（已完整服务）表示宿主已发送某个文件被请求的每一个字节；它并不表示设备已安装该文件。
+宿主只报告其能够观测到的内容：`FullyServed`（已完整服务）表示安装器请求的每个字节都已发送，并不表示 title 已安装。
 
-## 延伸阅读
+## 快速开始
 
-- [架构设计](docs/design.md)与[路线图](docs/roadmap.md)
-- [DBI 协议说明](docs/dbi0-protocol.md)、[Awoo 协议说明](docs/awoo-usb-protocol.md)与[Goldleaf 协议说明](docs/goldleaf-usb-protocol.md)
-- [DBI Gate 0](docs/gate0.md)、[Awoo gate](docs/awoo-gate.md)与[Goldleaf gate](docs/goldleaf-gate.md)
+`nsp-carrier` 是一款桌面应用。它通过 USB 把你选定的文件提供给 Switch 上运行的安装器；它绝不会写入 Switch，因此安装始终在安装器一侧进行。
 
-## 构建前置条件
+你需要：
+
+- 一台在 USB 模式下运行匹配安装器的 Switch —— DBI、Awoo Installer 1.6.2 或 Goldleaf 0.10+；
+- 一根连接 PC 与 Switch 的 USB 线；
+- 一份应用副本。目前还没有公开安装包，暂时需要从源码构建（见[开发](#开发)）或使用 CI 构建产物。
+
+基本流程：
+
+1. 向队列添加 `.nsp`、`.nsz`、`.xci` 或 `.xcz` 文件与文件夹（也支持拖放）。
+2. 选择与你的安装器匹配的 profile：DBI、Awoo 或 Goldleaf。
+3. 开始服务，然后在 Switch 的安装器中安装。
+4. 在应用中查看逐文件进度。`FullyServed`（已完整服务）表示宿主已发送安装器请求的每一个字节——并不表示 title 已安装。
+
+所选 profile 无法服务的文件会以明确的校验错误阻止 Start，而不会被静默跳过。
+
+平台相关配置——macOS 的 `libusb`、Windows 的 USB 驱动——见[安装](#安装)。
+
+## 安装
+
+### macOS
+
+macOS 通过 `libusb` 访问 USB。使用 Homebrew 安装：
+
+```sh
+brew install libusb
+```
+
+### Windows
+
+Switch 以裸 USB 设备的形式暴露，Windows 需要先安装兼容的 USB 驱动，`nsp-carrier` 才能看到它。使用 [Zadig](https://zadig.akeo.ie/) 安装：
+
+1. 从 <https://zadig.akeo.ie/> 下载并运行 Zadig。
+2. 用 USB 线把 Switch 连接到 PC。
+3. 让安装器进入 USB 模式——DBI 进入其 USB 模式（DBIbackend）；Awoo 选择“通过 USB 安装”；Goldleaf 打开 Remote PC 浏览器。
+4. 在 Zadig 中打开 *Options → List All Devices*，让 Switch 显示出来。
+5. 从下拉列表选择 Switch 设备——厂商 ID 为 `057E`（Nintendo），常见显示为 `DBI`、`USB composite device` 或 `057E:3000`；选择匹配的那一项。
+6. 目标驱动选择 **libusbK**（若不可用也可选 *WinUSB*）。
+7. 点击 *Replace Driver*（或 *Install Driver*），等待安装完成。
+8. 启动 `nsp-carrier`，确认应用能看到设备后再开始服务。
+
+## 开发
+
+以下内容面向从源码构建或测试 `nsp-carrier` 的人；最终用户无需关心。
+
+### 构建前置条件
 
 在 macOS 上安装 CGO 与前端依赖：
 
@@ -37,7 +87,7 @@ make ui-install
 
 `make check` 运行 Go 与前端测试、竞态检查、fuzz 冒烟测试、静态分析以及本地构建。
 
-## 开发者 USB CLI
+### 开发者 USB CLI
 
 使用本地内容路径构建并运行保留的诊断 CLI：
 
@@ -56,7 +106,7 @@ CLI 会递归构建并冻结 catalog，等待 USB 设备 `057e:3000`，发现恰
 
 通过自动化测试或编译此 CLI 并不等于通过真实设备 gate；每个 profile 的验收文档仍各自具有权威性。
 
-## 桌面应用
+### 桌面应用
 
 安装固定的 Wails v2 CLI 并验证本地 macOS 工具链：
 
@@ -74,7 +124,7 @@ make app-build
 
 产物写入 `build/bin/NSP Carrier.app`。本地 bundle 未签名；公开签名、公证与安装器仍待办。Bundle 标识符为 `im.theo.nsp-carrier`。
 
-## 持续集成
+### 持续集成
 
 GitHub Actions 为拉取请求、推送到 `main` 及手动运行构建并检查两个桌面目标：
 
@@ -83,6 +133,21 @@ GitHub Actions 为拉取请求、推送到 `main` 及手动运行构建并检查
 
 每个任务上传七天期的 zip 产物与 SHA-256 校验和。Windows zip 包含 `libusb-1.0.dll`；macOS 应用内嵌 `libusb`，并在打包后进行 ad-hoc 签名。这些 CI 产物未进行公开代码签名或公证。Windows 用户必须另行配置兼容的 USB 驱动（例如 WinUSB）。真实设备验收记录在 macOS arm64 上完成；不构建或支持 Linux。
 
+### 延伸阅读
+
+- [架构设计](docs/design.md)与[路线图](docs/roadmap.md)
+- [DBI 协议说明](docs/dbi0-protocol.md)、[Awoo 协议说明](docs/awoo-usb-protocol.md)与[Goldleaf 协议说明](docs/goldleaf-usb-protocol.md)
+- [DBI Gate 0](docs/gate0.md)、[Awoo gate](docs/awoo-gate.md)与[Goldleaf gate](docs/goldleaf-gate.md)
+
 ## 许可
 
-MIT。实现为 clean-room（洁净室）：上游项目仅作为行为参考。
+MIT。
+
+## 致谢
+
+DBI、Awoo 与 Goldleaf 协议实现基于观测到的线上行为开发，以下上游项目作为行为参考：
+
+- [`rashevskyv/dbibackend-qt`](https://github.com/rashevskyv/dbibackend-qt) —— DBI 后端参考
+- [`developersu/ns-usbloader`](https://github.com/developersu/ns-usbloader) —— Awoo 与 Goldleaf 线上参考
+- [`Huntereb/Awoo-Installer`](https://github.com/Huntereb/Awoo-Installer) —— Awoo 参考
+- [`XorTroll/Goldleaf`](https://github.com/XorTroll/Goldleaf) —— Goldleaf 参考

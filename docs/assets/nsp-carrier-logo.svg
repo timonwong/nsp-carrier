@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">NSP Carrier app icon</title>
+  <desc id="desc">A light rounded square containing a dark capsule and a blue capsule.</desc>
+  <rect x="96" y="96" width="832" height="832" rx="245" fill="#f2f4f8"/>
+  <rect x="267" y="267" width="209" height="490" rx="104.5" fill="#11141a"/>
+  <rect x="549" y="267" width="209" height="490" rx="104.5" fill="#7190ff"/>
+</svg>
