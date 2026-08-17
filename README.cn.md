@@ -6,9 +6,9 @@
 
 简体中文 · [English](README.md)
 
-`nsp-carrier` 是一个面向 NS 安装器的 Go 宿主（host），带有基于 Wails v2 + Svelte/TypeScript 的桌面 UI。它通过用户显式选择的 DBI、Awoo 或 Goldleaf profile 暴露选定的本地文件。
+**NSP Carrier** 是一款桌面应用，通过 USB 把你选定的 `.nsp`、`.nsz`、`.xci` 与 `.xcz` 文件提供给 Switch 上运行的安装器——DBI、Awoo 或 Goldleaf。将文件加入队列、选择匹配的安装器 profile 并开始服务；真正的安装由 Switch 端的安装器完成。
 
-宿主只报告其能够观测到的 USB 会话与文件服务状态。它既不是 MTP 实现，也不是 Switch 端安装器，更不能证明某个 title 已成功安装。
+应用只报告它经 USB 能够观测到的内容：哪些文件已服务、每次传输进行到哪一步。它不是安装器、不是 MTP 服务器，也不能证明某个 title 已安装。
 
 ![NSP Carrier 桌面应用](docs/assets/nsp-carrier-desktop.jpg)
 
@@ -132,6 +132,8 @@ GitHub Actions 为拉取请求、推送到 `main` 及手动运行构建并检查
 - macOS arm64（Apple Silicon runner）。
 
 每个任务上传七天期的 zip 产物与 SHA-256 校验和。Windows zip 包含 `libusb-1.0.dll`；macOS 应用内嵌 `libusb`，并在打包后进行 ad-hoc 签名。这些 CI 产物未进行公开代码签名或公证。Windows 用户必须另行配置兼容的 USB 驱动（例如 WinUSB）。真实设备验收记录在 macOS arm64 上完成；不构建或支持 Linux。
+
+推送名称以 `v` 开头的 tag 会复用同一套构建流水线，并将两个平台的 zip 及其校验和发布到 GitHub Release，同时自动生成发布说明。
 
 ### 延伸阅读
 

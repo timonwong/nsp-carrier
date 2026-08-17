@@ -6,13 +6,14 @@
 
 [简体中文](README.cn.md) · English
 
-`nsp-carrier` is a Go host for NS installers, with a Wails v2 +
-Svelte/TypeScript desktop UI. It exposes selected local files through an
-explicitly selected DBI, Awoo, or Goldleaf profile.
+**NSP Carrier** is a desktop app that serves your `.nsp`, `.nsz`, `.xci`,
+and `.xcz` files to the installer running on your Switch over USB — DBI,
+Awoo, or Goldleaf. Add files to the queue, pick the matching installer
+profile, and serve; the installer on the Switch performs the actual install.
 
-The host reports only USB session and file-serving state that it can observe.
-It is not an MTP implementation, a Switch-side installer, or proof that a
-title was installed successfully.
+The app reports only what it can observe over USB: which files were served
+and how far each transfer got. It is not an installer, an MTP server, or
+proof that a title was installed.
 
 ![NSP Carrier desktop application](docs/assets/nsp-carrier-desktop.jpg)
 
@@ -177,6 +178,10 @@ signed after bundling. These CI artifacts are not publicly code-signed or
 notarised. Windows users must configure a compatible USB driver such as
 WinUSB separately. Real-device acceptance is recorded on macOS arm64; Linux
 is not built or supported.
+
+Pushing a tag whose name starts with `v` reuses the same build workflow and
+publishes both platform zips and their checksums to a GitHub Release with
+generated notes.
 
 ### Further reading
 
