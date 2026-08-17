@@ -108,4 +108,14 @@ GitHub Actions 为拉取请求、推送到 `main` 及手动运行构建并检查
 
 ## 许可
 
-MIT。实现为 clean-room（洁净室）：上游项目仅作为行为参考。
+MIT。
+
+## 致谢
+
+DBI、Awoo 与 Goldleaf 协议实现基于观测到的线上行为开发，以下上游项目作为行为参考：
+
+- [`rashevskyv/dbi`](https://github.com/rashevskyv/dbi) —— DBI0 参考
+- [`rashevskyv/dbibackend-qt`](https://github.com/rashevskyv/dbibackend-qt) —— DBI 后端参考
+- [`developersu/ns-usbloader`](https://github.com/developersu/ns-usbloader) —— Awoo 与 Goldleaf 线上参考
+- [`Huntereb/Awoo-Installer`](https://github.com/Huntereb/Awoo-Installer) —— Awoo 参考
+- [`XorTroll/Goldleaf`](https://github.com/XorTroll/Goldleaf) —— Goldleaf 参考
