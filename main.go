@@ -39,7 +39,7 @@ func main() {
 			Appearance: mac.DefaultAppearance,
 			About: &mac.AboutInfo{
 				Title:   "NSP Carrier",
-				Message: "A local DBI USB file carrier. Host-side completion is not proof of installation.",
+				Message: "An Omni host for NS installers. Host-side completion is not proof of installation.",
 			},
 		},
 	}); err != nil {

@@ -19,16 +19,28 @@ const baseSnapshot = {
   lastError: '', activeProfile: 'goldleaf', validationErrors: [],
   profiles: [
     {
-      id: 'dbi', displayName: 'Backend DBI', protocolFamily: 'DBI0', transport: 'usb',
-      supportedExtensions: ['.nsp', '.nsz'], wireNamespace: 'flat-basename',
-      filesystemAccess: 'none', compatibleVersions: ['DBI0'], verifiedVersions: [],
-      knownIncompatibleVersions: [],
-      adapterAvailable: true,
+      id: 'awoo', displayName: 'Backend Awoo', protocolFamily: 'Awoo USB', transport: 'usb',
+      supportedExtensions: ['.nsp'], wireNamespace: 'flat-basename',
+      filesystemAccess: 'none', compatibleVersions: [], verifiedVersions: ['1.6.2'],
+      knownIncompatibleVersions: [], adapterAvailable: true,
     },
     {
       id: 'goldleaf', displayName: 'Backend Goldleaf', protocolFamily: 'Goldleaf 0.10+', transport: 'usb',
       supportedExtensions: ['.foo'], wireNamespace: 'VIRT:/', filesystemAccess: 'read-only',
       compatibleVersions: ['0.10+'], verifiedVersions: [], knownIncompatibleVersions: [],
+      adapterAvailable: true,
+    },
+    {
+      id: 'sphaira', displayName: 'Backend Sphaira', protocolFamily: 'Sphaira SPH0', transport: 'usb',
+      supportedExtensions: ['.nsp', '.msp'], wireNamespace: 'flat-basename',
+      filesystemAccess: 'none', compatibleVersions: ['1.0+'], verifiedVersions: [],
+      knownIncompatibleVersions: ['0.13.3 and earlier'], adapterAvailable: true,
+    },
+    {
+      id: 'dbi', displayName: 'Backend DBI', protocolFamily: 'DBI0', transport: 'usb',
+      supportedExtensions: ['.nsp', '.nsz'], wireNamespace: 'flat-basename',
+      filesystemAccess: 'none', compatibleVersions: ['DBI0'], verifiedVersions: [],
+      knownIncompatibleVersions: [],
       adapterAvailable: true,
     },
   ],
@@ -45,9 +57,11 @@ describe('installer profile UI', () => {
 
   it('renders backend-provided profiles and capabilities without a frontend format matrix', async () => {
     render(App)
-    expect(await screen.findByRole('group', {name: 'Installer profile'})).toBeTruthy()
+    const group = await screen.findByRole('group', {name: 'Installer profile'})
     const dbi = await screen.findByRole('button', {name: 'Backend DBI'})
     const goldleaf = screen.getByRole('button', {name: 'Backend Goldleaf'})
+    expect([...group.querySelectorAll('button')].map((button) => button.textContent?.trim()))
+      .toEqual(['Backend Awoo', 'Backend Goldleaf', 'Backend Sphaira', 'Backend DBI'])
     expect(dbi.getAttribute('aria-pressed')).toBe('false')
     expect(goldleaf.getAttribute('aria-pressed')).toBe('true')
     expect((dbi as HTMLButtonElement).disabled).toBe(false)

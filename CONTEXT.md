@@ -12,12 +12,12 @@ _Avoid_: DBI USB file service, PC installer, uploader
 
 **Installer protocol**:
 A wire contract between the Omni host and a Switch-side installer,
-such as DBI0, Awoo, or Goldleaf.
+such as Awoo, Goldleaf, Sphaira SPH0, or DBI0.
 _Avoid_: NS-USBloader protocol
 
 **Installer profile**:
 The explicit user-selected installer protocol used for the next serving
-session: DBI, Awoo USB, or Goldleaf.
+session: Awoo USB, Goldleaf, Sphaira, or DBI.
 _Avoid_: Mode, target, auto-detected protocol
 
 **Profile capabilities**:
@@ -46,8 +46,8 @@ state; a reconnect creates a new serving session.
 _Avoid_: Install session, resumable session
 
 **Fully served**:
-The host has successfully sent every byte requested for a file during a
-serving session; it does not mean the file was installed.
+The host has satisfied the selected profile's observable byte-coverage rule
+for a file during a serving session; it does not mean the file was installed.
 _Avoid_: Installed, installation succeeded, uploaded
 
 **Virtual catalog drive**:

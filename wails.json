@@ -15,6 +15,6 @@
     "productName": "NSP Carrier",
     "productVersion": "0.1.0",
     "copyright": "Copyright 2026 Theo",
-    "comments": "A local DBI USB file carrier"
+    "comments": "An Omni host for NS installers"
   }
 }

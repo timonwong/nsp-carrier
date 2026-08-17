@@ -14,16 +14,19 @@ const (
 // Record contains payload-safe protocol metadata. It deliberately has no raw
 // byte, local path, or wire-name field.
 type Record struct {
-	Sequence     uint64    `json:"sequence"`
-	Direction    Direction `json:"direction"`
-	Operation    string    `json:"operation"`
-	Command      uint32    `json:"command"`
-	PayloadBytes uint64    `json:"payloadBytes"`
-	SourceID     string    `json:"sourceId,omitempty"`
-	Offset       uint64    `json:"offset,omitempty"`
-	Size         uint64    `json:"size,omitempty"`
-	ResultCode   uint32    `json:"resultCode,omitempty"`
-	HasResult    bool      `json:"hasResult,omitempty"`
+	Sequence         uint64    `json:"sequence"`
+	Direction        Direction `json:"direction"`
+	Operation        string    `json:"operation"`
+	Command          uint32    `json:"command"`
+	PayloadBytes     uint64    `json:"payloadBytes"`
+	SourceID         string    `json:"sourceId,omitempty"`
+	Offset           uint64    `json:"offset,omitempty"`
+	Size             uint64    `json:"size,omitempty"`
+	ResultCode       uint32    `json:"resultCode,omitempty"`
+	HasResult        bool      `json:"hasResult,omitempty"`
+	Index            uint32    `json:"index,omitempty"`
+	IntegrityChecked bool      `json:"integrityChecked"`
+	IntegrityValid   bool      `json:"integrityValid"`
 }
 
 type Reporter interface {

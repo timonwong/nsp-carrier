@@ -24,6 +24,7 @@ internal/host       deep host-session runner, profile registry, and capabilities
 internal/dbi        DBI0 protocol adapter and codec
 internal/awoo       Awoo USB protocol adapter and codec
 internal/goldleaf   Goldleaf 0.10+ read-only virtual-drive adapter and codec
+internal/sphaira    Sphaira 1.x SPH0 range adapter and codec
 internal/files      queue discovery and protocol-neutral frozen source catalog
 internal/transport  USB-independent stream boundary and fake transport
 internal/usb        gousb/libusb adapter
@@ -37,8 +38,8 @@ and renders typed snapshots/events; it does not infer session or completion
 state. The application and diagnostics CLI call the same host-session runner.
 Progress snapshots are emitted at no more than 10 Hz.
 
-The host-session runner exposes one small interface. DBI, Awoo, and Goldleaf
-remain independent adapters behind its internal seam; there is no shared
+The host-session runner exposes one small interface. Awoo, Goldleaf, Sphaira,
+and DBI remain independent adapters behind its internal seam; there is no shared
 cross-protocol command model. The raw USB transport and safe connection
 lifecycle are shared below the adapter seam.
 
@@ -54,9 +55,10 @@ state and does not maintain a second capability table.
 
 | Profile | Transport | Start-eligible formats | Wire view | Filesystem mutation |
 | --- | --- | --- | --- | --- |
-| DBI | USB | `.nsp`, `.nsz`, `.xci`, `.xcz` | flat basenames | none |
 | Awoo | USB | `.nsp`, `.nsz`, `.xci`, `.xcz` | flat basenames | none |
 | Goldleaf 0.10+ | USB | `.nsp` | flat read-only `VIRT:/` | rejected |
+| Sphaira 1.0+ | USB | `.nsp`, `.nsz`, `.xci`, `.xcz`, `.msp` | flat basenames | none |
+| DBI | USB | `.nsp`, `.nsz`, `.xci`, `.xcz` | flat basenames | none |
 
 All profiles are selected explicitly before Start. A selected file that is not
 supported by the active profile blocks Start with an item-specific validation
@@ -74,6 +76,10 @@ identified reliably, the UI compares it with the profile's verified and
 incompatible version sets. When it cannot, the host does not guess. Product
 claims and acceptance documents name the exact versions verified on real
 hardware.
+
+Sphaira 1.0+ is Compatible with the SPH0 profile, but no exact version is
+Verified until its complete real-device matrix passes. Sphaira 0.13.3 and
+earlier use the incompatible TUL0/TUC0 generation.
 
 ## Session model
 
@@ -97,7 +103,8 @@ User-visible file states are `Queued`, `Requested`, `Serving`, `FullyServed`,
 
 ## File catalog
 
-- Accept `.nsp`, `.nsz`, `.xci`, and `.xcz`, case-insensitively.
+- Recognize `.nsp`, `.nsz`, `.xci`, `.xcz`, and `.msp`, case-insensitively;
+  only Sphaira accepts `.msp` at Start.
 - Recursively scan added directories without following symbolic links.
 - Deduplicate identical absolute paths.
 - Keep distinct paths with the same basename visible, but reject Start until
@@ -111,9 +118,9 @@ User-visible file states are `Queued`, `Requested`, `Serving`, `FullyServed`,
 
 The frozen source catalog uses stable internal IDs and absolute paths without
 encoding an installer protocol's naming rules. Each profile projects its own
-wire view and validates it before Start. DBI and Awoo use flat basenames;
-Goldleaf initially uses a flat virtual catalog drive. Duplicate basenames are
-therefore rejected by all three profiles, but the restriction belongs to each
+wire view and validates it before Start. Awoo, Sphaira, and DBI use flat
+basenames; Goldleaf uses a flat virtual catalog drive. Duplicate basenames are
+therefore rejected by all four profiles, but the restriction belongs to each
 wire projection rather than the shared catalog.
 
 ## Progress
@@ -132,8 +139,8 @@ serving. Checked files not requested by the end of a session become
 Each adapter reports successfully served byte ranges against stable source
 IDs. The host-session runner owns interval union, progress snapshots, and the
 shared `Requested`, `Serving`, and `FullyServed` transitions. A partial
-Goldleaf read is not `FullyServed`; no profile may translate that state into an
-installation claim.
+Goldleaf or Sphaira read is not `FullyServed`; no profile may translate that
+state into an installation claim.
 
 ## Cancellation and failure
 
@@ -176,8 +183,8 @@ Tests exercise public behavior at these agreed seams:
 2. Frozen file catalog and range validation.
 3. The host-session runner through a transport interface and scripted fake
    transport.
-4. Separate manual real-device compatibility gates for DBI, Awoo, and
-   Goldleaf.
+4. Separate manual real-device compatibility gates for DBI, Awoo, Goldleaf,
+   and Sphaira.
 
 The transport fake covers short I/O, timeouts, cancellation, disconnects, and
 malformed input. Tests do not couple to private helpers or include real content

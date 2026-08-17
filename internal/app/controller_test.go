@@ -251,6 +251,54 @@ func TestControllerPersistsIdleOnlyProfileAndRevalidatesWithoutMutatingSelection
 	close(releaseRunner)
 }
 
+func TestControllerRejectsRARBeforeStartInsteadOfSilentlySkippingIt(t *testing.T) {
+	root := t.TempDir()
+	for _, name := range []string{"game.nsp", "archive.rar"} {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(name), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	controller := NewControllerWithDependencies(func(context.Context, host.ProfileID, *files.Catalog, func(host.Event)) error {
+		return errors.New("runner should not start")
+	}, nil)
+	if _, err := controller.SetProfile(string(host.ProfileSphaira)); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := controller.Add([]string{root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(snapshot.Items) != 2 || snapshot.CanStart || len(snapshot.ValidationErrors) != 1 || snapshot.ValidationErrors[0].Name != "archive.rar" {
+		t.Fatalf("snapshot = %#v", snapshot)
+	}
+	if _, err := controller.Start(); !errors.Is(err, ErrQueueValidation) {
+		t.Fatalf("Start() error = %v", err)
+	}
+}
+
+func TestControllerRevalidates48BitLimitAgainstFreshStartCatalog(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "game.nsp")
+	if err := os.WriteFile(path, []byte("data"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	controller := NewControllerWithDependencies(func(context.Context, host.ProfileID, *files.Catalog, func(host.Event)) error {
+		return errors.New("runner should not start")
+	}, nil)
+	if _, err := controller.SetProfile(string(host.ProfileSphaira)); err != nil {
+		t.Fatal(err)
+	}
+	if snapshot, err := controller.Add([]string{path}); err != nil || !snapshot.CanStart {
+		t.Fatalf("initial snapshot = %#v, %v", snapshot, err)
+	}
+	if err := os.Truncate(path, int64(1<<48)); err != nil {
+		t.Skipf("filesystem cannot create 48-bit sparse test file: %v", err)
+	}
+	snapshot, err := controller.Start()
+	if !errors.Is(err, ErrQueueValidation) || snapshot.State != StateIdle || len(snapshot.ValidationErrors) != 1 || snapshot.ValidationErrors[0].Code != host.ValidationSourceTooLarge {
+		t.Fatalf("Start() snapshot = %#v, error = %v", snapshot, err)
+	}
+}
+
 type fakeProfileStore struct{ profile host.ProfileID }
 
 func (s *fakeProfileStore) LoadProfile() (host.ProfileID, error) { return s.profile, nil }

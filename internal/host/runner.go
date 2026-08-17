@@ -13,6 +13,7 @@ import (
 	"github.com/timonwong/nsp-carrier/internal/files"
 	"github.com/timonwong/nsp-carrier/internal/goldleaf"
 	"github.com/timonwong/nsp-carrier/internal/protocoltrace"
+	"github.com/timonwong/nsp-carrier/internal/sphaira"
 	"github.com/timonwong/nsp-carrier/internal/transport"
 )
 
@@ -287,6 +288,8 @@ func newAdapter(
 				})
 			}
 		}, trace)
+	case ProfileSphaira:
+		return sphaira.NewServerWithTrace(catalog, progress, trace)
 	default:
 		return nil, fmt.Errorf("%w: %s", ErrProfileUnavailable, profile)
 	}

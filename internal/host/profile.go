@@ -10,6 +10,7 @@ import (
 	"github.com/timonwong/nsp-carrier/internal/dbi"
 	"github.com/timonwong/nsp-carrier/internal/files"
 	"github.com/timonwong/nsp-carrier/internal/goldleaf"
+	"github.com/timonwong/nsp-carrier/internal/sphaira"
 )
 
 var ErrUnsupportedContent = errors.New("content is unsupported by installer profile")
@@ -20,6 +21,7 @@ const (
 	ProfileDBI      ProfileID = "dbi"
 	ProfileAwoo     ProfileID = "awoo"
 	ProfileGoldleaf ProfileID = "goldleaf"
+	ProfileSphaira  ProfileID = "sphaira"
 )
 
 type TransportKind string
@@ -68,6 +70,12 @@ var profileRegistry = []Profile{
 		CompatibleVersions: []string{"0.10+"}, VerifiedVersions: []string{"1.2.0"}, AdapterAvailable: true,
 	},
 	{
+		ID: ProfileSphaira, DisplayName: "Sphaira", ProtocolFamily: "Sphaira SPH0",
+		Transport: TransportUSB, SupportedExtensions: []string{".nsp", ".nsz", ".xci", ".xcz", ".msp"},
+		WireNamespace: NamespaceFlatBasename, FilesystemAccess: FilesystemNone,
+		CompatibleVersions: []string{"1.0+"}, KnownIncompatibleVersions: []string{"0.13.3 and earlier"}, AdapterAvailable: true,
+	},
+	{
 		ID: ProfileDBI, DisplayName: "DBI", ProtocolFamily: "DBI0",
 		Transport: TransportUSB, SupportedExtensions: []string{".nsp", ".nsz", ".xci", ".xcz"},
 		WireNamespace: NamespaceFlatBasename, FilesystemAccess: FilesystemNone,
@@ -107,6 +115,12 @@ func AllSupportedExtensions() []string {
 	return extensions
 }
 
+// DiscoveryExtensions includes unsupported selections that must remain
+// visible long enough for profile validation to reject them explicitly.
+func DiscoveryExtensions() []string {
+	return append(AllSupportedExtensions(), ".rar")
+}
+
 func cloneProfile(profile Profile) Profile {
 	profile.SupportedExtensions = append([]string{}, profile.SupportedExtensions...)
 	profile.CompatibleVersions = append([]string{}, profile.CompatibleVersions...)
@@ -121,6 +135,7 @@ const (
 	ValidationUnsupportedExtension ValidationCode = "unsupported-extension"
 	ValidationDuplicateWireName    ValidationCode = "duplicate-wire-name"
 	ValidationInvalidWireName      ValidationCode = "invalid-wire-name"
+	ValidationSourceTooLarge       ValidationCode = "source-too-large"
 )
 
 type ItemValidationError struct {
@@ -188,6 +203,12 @@ func ValidateCatalog(profileID ProfileID, catalog *files.Catalog) ([]ItemValidat
 				Message: fmt.Sprintf("%q cannot be represented safely by %s", entry.Name, profile.DisplayName),
 			})
 		}
+		if profileID == ProfileSphaira && sphaira.ValidateSourceSize(entry.Size) != nil {
+			validationErrors = append(validationErrors, ItemValidationError{
+				SourceID: entry.ID, Name: entry.Name, Code: ValidationSourceTooLarge,
+				Message: fmt.Sprintf("%s exceeds Sphaira SPH0's 48-bit source-size limit", entry.Name),
+			})
+		}
 	}
 	return validationErrors, nil
 }
@@ -200,6 +221,8 @@ func validateWireName(profileID ProfileID, name string) error {
 		return awoo.ValidateWireName(name)
 	case ProfileGoldleaf:
 		return goldleaf.ValidateWireName(name)
+	case ProfileSphaira:
+		return sphaira.ValidateWireName(name)
 	default:
 		if strings.ContainsAny(name, "\x00\r\n") {
 			return errors.New("invalid wire name")

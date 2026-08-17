@@ -37,11 +37,11 @@ func TestProfileSettingsDefaultAndMigrationFallbackToDBI(t *testing.T) {
 func TestProfileSettingsPersistStableProfileID(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "nested", "settings.json")
 	store := settings.FileStore{Path: path}
-	if err := store.SaveProfile(host.ProfileGoldleaf); err != nil {
+	if err := store.SaveProfile(host.ProfileSphaira); err != nil {
 		t.Fatal(err)
 	}
 	profile, err := store.LoadProfile()
-	if err != nil || profile != host.ProfileGoldleaf {
+	if err != nil || profile != host.ProfileSphaira {
 		t.Fatalf("LoadProfile() = %q, %v", profile, err)
 	}
 }

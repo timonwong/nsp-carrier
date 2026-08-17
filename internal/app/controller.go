@@ -154,7 +154,7 @@ func (c *Controller) SetProfile(profileID string) (ViewSnapshot, error) {
 }
 
 func (c *Controller) Add(inputs []string) (ViewSnapshot, error) {
-	discovered, err := files.Discover(inputs, host.AllSupportedExtensions())
+	discovered, err := files.Discover(inputs, host.DiscoveryExtensions())
 	if err != nil {
 		return c.Snapshot(), err
 	}
@@ -181,7 +181,7 @@ func (c *Controller) Add(inputs []string) (ViewSnapshot, error) {
 		added++
 	}
 	c.revalidateLocked()
-	c.appendLogLocked("info", fmt.Sprintf("Added %d supported file(s)", added))
+	c.appendLogLocked("info", fmt.Sprintf("Added %d file(s)", added))
 	snapshot, sink := c.snapshotLocked(), c.sink
 	c.mu.Unlock()
 	c.emit(sink, snapshot)
@@ -301,10 +301,20 @@ func (c *Controller) Start() (ViewSnapshot, error) {
 		c.mu.Unlock()
 		return c.Snapshot(), ErrQueueValidation
 	}
-	catalog, err := files.BuildCatalog(paths, host.AllSupportedExtensions())
+	catalog, err := files.BuildCatalog(paths, host.DiscoveryExtensions())
 	if err != nil {
 		c.mu.Unlock()
 		return c.Snapshot(), err
+	}
+	validationErrors, err := host.ValidateCatalog(c.profile, catalog)
+	if err != nil {
+		c.mu.Unlock()
+		return c.Snapshot(), err
+	}
+	c.applyValidationErrorsLocked(validationErrors)
+	if len(validationErrors) > 0 {
+		c.mu.Unlock()
+		return c.Snapshot(), ErrQueueValidation
 	}
 	for index := range c.items {
 		c.items[index].Status = "Queued"
@@ -462,7 +472,7 @@ func (c *Controller) revalidateLocked() {
 	if len(paths) == 0 {
 		return
 	}
-	catalog, err := files.BuildCatalog(paths, host.AllSupportedExtensions())
+	catalog, err := files.BuildCatalog(paths, host.DiscoveryExtensions())
 	if err != nil {
 		return
 	}
@@ -470,13 +480,19 @@ func (c *Controller) revalidateLocked() {
 	if err != nil {
 		return
 	}
-	c.validationErrors = validationErrors
+	c.applyValidationErrorsLocked(validationErrors)
+}
+
+func (c *Controller) applyValidationErrorsLocked(validationErrors []host.ItemValidationError) {
+	c.validationErrors = append([]host.ItemValidationError(nil), validationErrors...)
 	bySourceID := make(map[string][]host.ItemValidationError)
 	for _, validationError := range validationErrors {
 		bySourceID[validationError.SourceID] = append(bySourceID[validationError.SourceID], validationError)
 	}
 	for index := range c.items {
 		item := &c.items[index]
+		item.Conflict = false
+		item.ValidationErrors = nil
 		item.ValidationErrors = append(item.ValidationErrors, bySourceID[item.ID]...)
 		for _, validationError := range item.ValidationErrors {
 			if validationError.Code == host.ValidationDuplicateWireName {
