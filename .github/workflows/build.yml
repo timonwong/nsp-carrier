@@ -102,7 +102,7 @@ jobs:
         run: npm --prefix frontend run build
 
       - name: Build Wails application
-        run: wails build -clean -m -s -trimpath -platform ${{ matrix.platform }}
+        run: wails build -clean -m -s -skipbindings -trimpath -platform ${{ matrix.platform }}
 
       - name: Package Windows artifact
         if: runner.os == 'Windows'

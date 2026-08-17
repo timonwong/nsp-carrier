@@ -13,6 +13,7 @@
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "format:generated": "oxfmt wailsjs",
+    "bindings:canonicalize": "node scripts/wails-bindings.ts canonicalize",
     "bindings:generate": "node scripts/wails-bindings.ts generate",
     "bindings:check": "node scripts/wails-bindings.ts check",
     "test": "vitest run"

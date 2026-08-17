@@ -47,16 +47,25 @@ async function normalizeModes(directory: string): Promise<void> {
   );
 }
 
-async function generateBindings(): Promise<void> {
-  run(process.env.WAILS_BIN || "wails", ["generate", "module"], projectRoot);
+async function canonicalizeBindings(): Promise<void> {
   run(process.execPath, [formatter, "wailsjs"], frontendRoot);
   await normalizeModes(generatedRoot);
 }
 
+async function generateBindings(): Promise<void> {
+  run(process.env.WAILS_BIN || "wails", ["generate", "module"], projectRoot);
+  await canonicalizeBindings();
+}
+
 async function main(): Promise<void> {
   const command = process.argv[2];
-  if (command !== "generate" && command !== "check") {
-    throw new Error("usage: wails-bindings.ts <generate|check>");
+  if (command !== "canonicalize" && command !== "generate" && command !== "check") {
+    throw new Error("usage: wails-bindings.ts <canonicalize|generate|check>");
+  }
+
+  if (command === "canonicalize") {
+    await canonicalizeBindings();
+    return;
   }
 
   if (command === "check") {
