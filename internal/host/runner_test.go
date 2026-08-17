@@ -1,9 +1,11 @@
 package host_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -14,6 +16,7 @@ import (
 	"github.com/timonwong/nsp-carrier/internal/goldleaf"
 	"github.com/timonwong/nsp-carrier/internal/host"
 	"github.com/timonwong/nsp-carrier/internal/protocoltrace"
+	"github.com/timonwong/nsp-carrier/internal/sphaira"
 	"github.com/timonwong/nsp-carrier/internal/transport"
 )
 
@@ -44,6 +47,341 @@ func TestRunnerDispatchesDBIAndOwnsServingSessionState(t *testing.T) {
 	want := dbi.EncodeHeader(dbi.Header{Type: dbi.CommandTypeResponse, Command: dbi.CommandExit})
 	if string(link.Written()) != string(want[:]) {
 		t.Fatalf("wire response = %x, want %x", link.Written(), want)
+	}
+}
+
+func TestRunnerServesCompleteSphairaSessionAtTheHostBoundary(t *testing.T) {
+	root := t.TempDir()
+	paths := []string{filepath.Join(root, "first.nsp"), filepath.Join(root, "second.msp")}
+	for index, path := range paths {
+		if err := os.WriteFile(path, []byte(fmt.Sprintf("file-%d-data", index)), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	catalog, err := files.BuildCatalog(paths, host.AllSupportedExtensions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	handshake := sphaira.EncodeCommand(sphaira.CommandQuit, 0, 0)
+	open := sphaira.EncodeCommand(sphaira.CommandOpen, 1, 0)
+	rangePacket := sphaira.EncodeData(5, 10, 0)
+	closePacket := sphaira.EncodeData(0, 0, 0)
+	quit := sphaira.EncodeCommand(sphaira.CommandQuit, 0, 0)
+	input := append(append(append(append(handshake[:], open[:]...), rangePacket[:]...), closePacket[:]...), quit[:]...)
+	link := transport.NewMemory(input, transport.WithMaxRead(7), transport.WithMaxWrite(5), transport.WithReadFaults(transport.ErrTimeout))
+	var terminal host.Event
+	err = host.NewRunner().Run(context.Background(), host.Request{
+		Profile: host.ProfileSphaira, Catalog: catalog, Connector: connector(link), TraceProtocol: true,
+		Observe: func(event host.Event) { terminal = event },
+	})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+
+	list := []byte("first.nsp\nsecond.msp\n")
+	want := append([]byte{}, sphairaPacket(sphaira.EncodeResult(sphaira.ResultOK, uint32(len(list)), 0))...)
+	want = append(want, list...)
+	want = append(want, sphairaPacket(sphaira.EncodeResult(sphaira.ResultOK, 0, uint32(len("file-1-data"))))...)
+	payload := []byte("1-data")
+	want = append(want, sphairaPacket(sphaira.EncodeResult(sphaira.ResultOK, uint32(len(payload)), sphaira.PayloadCRC32C(payload)))...)
+	want = append(want, payload...)
+	want = append(want, sphairaPacket(sphaira.EncodeResult(sphaira.ResultOK, 0, 0))...)
+	want = append(want, sphairaPacket(sphaira.EncodeResult(sphaira.ResultOK, 0, 0))...)
+	if got := link.Written(); string(got) != string(want) {
+		t.Fatalf("wire output = %x\nwant = %x", got, want)
+	}
+	entry := catalog.Entries()[1]
+	progress := terminal.Progress[entry.ID]
+	if terminal.State != host.StateCompleted || progress.State != host.FileInterrupted ||
+		progress.UniqueServedBytes != 6 || progress.RangeRequests != 1 {
+		t.Fatalf("terminal event = %#v", terminal)
+	}
+	if len(terminal.ProtocolTrace) == 0 {
+		t.Fatal("Sphaira session emitted no protocol trace")
+	}
+	var sawRangeIntegrity bool
+	for _, record := range terminal.ProtocolTrace {
+		if record.Operation == "range" && record.IntegrityChecked && record.IntegrityValid && record.Offset == 5 && record.Size == 10 {
+			sawRangeIntegrity = true
+		}
+	}
+	if !sawRangeIntegrity {
+		t.Fatalf("trace = %#v", terminal.ProtocolTrace)
+	}
+}
+
+func sphairaPacket(packet [sphaira.PacketSize]byte) []byte { return packet[:] }
+
+func TestRunnerTracksWholeSourceCoverageForSphaira(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "game.nsp")
+	if err := os.WriteFile(path, []byte("0123456789"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := files.BuildCatalog([]string{path}, host.AllSupportedExtensions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	packets := [][sphaira.PacketSize]byte{
+		sphaira.EncodeCommand(sphaira.CommandQuit, 0, 0),
+		sphaira.EncodeCommand(sphaira.CommandOpen, 0, 0),
+		sphaira.EncodeData(5, 5, 0),
+		sphaira.EncodeData(0, 5, 0),
+		sphaira.EncodeData(0, 5, 0),
+		sphaira.EncodeData(8, 5, 0),
+		sphaira.EncodeData(0, 0, 0),
+		sphaira.EncodeCommand(sphaira.CommandQuit, 0, 0),
+	}
+	var input []byte
+	for _, packet := range packets {
+		input = append(input, packet[:]...)
+	}
+	var terminal host.Event
+	if err := host.NewRunner().Run(context.Background(), host.Request{
+		Profile: host.ProfileSphaira, Catalog: catalog, Connector: connector(transport.NewMemory(input)),
+		Observe: func(event host.Event) { terminal = event },
+	}); err != nil {
+		t.Fatal(err)
+	}
+	progress := terminal.Progress[catalog.Entries()[0].ID]
+	if progress.State != host.FileFullyServed || progress.UniqueServedBytes != 10 || progress.WireBytes != 17 ||
+		progress.RangeRequests != 4 || progress.NonSequentialRequests != 3 || progress.BackwardRequests != 1 || progress.RepeatedRequests != 1 {
+		t.Fatalf("progress = %#v", progress)
+	}
+}
+
+func TestRunnerReconnectsSphairaWithFreshSessionIdentity(t *testing.T) {
+	catalog, err := files.BuildCatalog(nil, host.AllSupportedExtensions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	handshake := sphaira.EncodeCommand(sphaira.CommandQuit, 0, 0)
+	quit := sphaira.EncodeCommand(sphaira.CommandQuit, 0, 0)
+	completedInput := append(handshake[:], quit[:]...)
+	var sessions []string
+	var sawDisconnected bool
+	err = host.NewRunner().Run(context.Background(), host.Request{
+		Profile: host.ProfileSphaira, Catalog: catalog,
+		Connector: &scriptedConnector{connections: []host.Connection{
+			&memoryConnection{Memory: transport.NewMemory(nil)},
+			&memoryConnection{Memory: transport.NewMemory(completedInput)},
+		}},
+		Observe: func(event host.Event) {
+			if event.State == host.StateConnected {
+				sessions = append(sessions, event.SessionID)
+			}
+			if event.State == host.StateDisconnected {
+				sawDisconnected = true
+			}
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !sawDisconnected || len(sessions) != 2 || sessions[0] == sessions[1] {
+		t.Fatalf("disconnected=%t sessions=%q", sawDisconnected, sessions)
+	}
+}
+
+func TestRunnerServesSphairaOffsetAboveFourGiB(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "large.xci")
+	file, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const offset = int64(1<<32 + 7)
+	if err := file.Truncate(offset + 4); err != nil {
+		file.Close()
+		t.Fatal(err)
+	}
+	if _, err := file.WriteAt([]byte("tail"), offset); err != nil {
+		file.Close()
+		t.Fatal(err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := files.BuildCatalog([]string{path}, host.AllSupportedExtensions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	packets := [][sphaira.PacketSize]byte{
+		sphaira.EncodeCommand(sphaira.CommandQuit, 0, 0),
+		sphaira.EncodeCommand(sphaira.CommandOpen, 0, 0),
+		sphaira.EncodeData(uint64(offset), 4, 0),
+		sphaira.EncodeData(0, 0, 0),
+		sphaira.EncodeCommand(sphaira.CommandQuit, 0, 0),
+	}
+	var input []byte
+	for _, packet := range packets {
+		input = append(input, packet[:]...)
+	}
+	link := transport.NewMemory(input)
+	var terminal host.Event
+	if err := host.NewRunner().Run(context.Background(), host.Request{
+		Profile: host.ProfileSphaira, Catalog: catalog, Connector: connector(link),
+		Observe: func(event host.Event) { terminal = event },
+	}); err != nil {
+		t.Fatal(err)
+	}
+	response := sphaira.EncodeResult(sphaira.ResultOK, 4, sphaira.PayloadCRC32C([]byte("tail")))
+	if !bytes.Contains(link.Written(), append(response[:], []byte("tail")...)) {
+		t.Fatalf("wire output = %x", link.Written())
+	}
+	progress := terminal.Progress[catalog.Entries()[0].ID]
+	if progress.MaxRequestedOffset != uint64(offset) || progress.UniqueServedBytes != 4 {
+		t.Fatalf("progress = %#v", progress)
+	}
+}
+
+func TestRunnerClassifiesSphairaProtocolFailuresAtThePrimarySeam(t *testing.T) {
+	t.Run("malformed packet", func(t *testing.T) {
+		catalog, err := files.BuildCatalog(nil, host.AllSupportedExtensions())
+		if err != nil {
+			t.Fatal(err)
+		}
+		malformed := sphaira.EncodeCommand(sphaira.CommandQuit, 0, 0)
+		malformed[20] ^= 0xff
+		var terminal host.Event
+		err = host.NewRunner().Run(context.Background(), host.Request{
+			Profile: host.ProfileSphaira, Catalog: catalog, Connector: connector(transport.NewMemory(malformed[:])), TraceProtocol: true,
+			Observe: func(event host.Event) { terminal = event },
+		})
+		if !errors.Is(err, sphaira.ErrProtocol) || terminal.State != host.StateFailed ||
+			len(terminal.ProtocolTrace) != 1 || terminal.ProtocolTrace[0].IntegrityValid {
+			t.Fatalf("error=%v terminal=%#v", err, terminal)
+		}
+	})
+
+	t.Run("invalid index", func(t *testing.T) {
+		catalog, err := files.BuildCatalog(nil, host.AllSupportedExtensions())
+		if err != nil {
+			t.Fatal(err)
+		}
+		handshake := sphaira.EncodeCommand(sphaira.CommandQuit, 0, 0)
+		open := sphaira.EncodeCommand(sphaira.CommandOpen, 1, 0)
+		input := append(handshake[:], open[:]...)
+		var terminal host.Event
+		err = host.NewRunner().Run(context.Background(), host.Request{
+			Profile: host.ProfileSphaira, Catalog: catalog, Connector: connector(transport.NewMemory(input)),
+			Observe: func(event host.Event) { terminal = event },
+		})
+		if !errors.Is(err, sphaira.ErrInvalidRequest) || terminal.State != host.StateFailed {
+			t.Fatalf("error=%v terminal=%#v", err, terminal)
+		}
+	})
+
+	t.Run("unknown command", func(t *testing.T) {
+		catalog, err := files.BuildCatalog(nil, host.AllSupportedExtensions())
+		if err != nil {
+			t.Fatal(err)
+		}
+		handshake := sphaira.EncodeCommand(sphaira.CommandQuit, 0, 0)
+		unknown := sphaira.EncodeCommand(99, 0, 0)
+		input := append(handshake[:], unknown[:]...)
+		var terminal host.Event
+		err = host.NewRunner().Run(context.Background(), host.Request{
+			Profile: host.ProfileSphaira, Catalog: catalog, Connector: connector(transport.NewMemory(input)),
+			Observe: func(event host.Event) { terminal = event },
+		})
+		if !errors.Is(err, sphaira.ErrUnsupportedCommand) || terminal.State != host.StateFailed {
+			t.Fatalf("error=%v terminal=%#v", err, terminal)
+		}
+	})
+
+	t.Run("invalid range", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "game.nsp")
+		if err := os.WriteFile(path, []byte("data"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		catalog, err := files.BuildCatalog([]string{path}, host.AllSupportedExtensions())
+		if err != nil {
+			t.Fatal(err)
+		}
+		handshake := sphaira.EncodeCommand(sphaira.CommandQuit, 0, 0)
+		open := sphaira.EncodeCommand(sphaira.CommandOpen, 0, 0)
+		invalid := sphaira.EncodeData(0, sphaira.MaxRangeSize+1, 0)
+		input := append(append(handshake[:], open[:]...), invalid[:]...)
+		var terminal host.Event
+		err = host.NewRunner().Run(context.Background(), host.Request{
+			Profile: host.ProfileSphaira, Catalog: catalog, Connector: connector(transport.NewMemory(input)),
+			Observe: func(event host.Event) { terminal = event },
+		})
+		if !errors.Is(err, sphaira.ErrInvalidRequest) || terminal.State != host.StateFailed {
+			t.Fatalf("error=%v terminal=%#v", err, terminal)
+		}
+	})
+
+	t.Run("source mutation", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "game.nsp")
+		if err := os.WriteFile(path, []byte("data"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		catalog, err := files.BuildCatalog([]string{path}, host.AllSupportedExtensions())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("changed"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		handshake := sphaira.EncodeCommand(sphaira.CommandQuit, 0, 0)
+		open := sphaira.EncodeCommand(sphaira.CommandOpen, 0, 0)
+		rangePacket := sphaira.EncodeData(0, 1, 0)
+		input := append(append(handshake[:], open[:]...), rangePacket[:]...)
+		var terminal host.Event
+		err = host.NewRunner().Run(context.Background(), host.Request{
+			Profile: host.ProfileSphaira, Catalog: catalog, Connector: connector(transport.NewMemory(input)),
+			Observe: func(event host.Event) { terminal = event },
+		})
+		if !errors.Is(err, files.ErrSourceChanged) || terminal.State != host.StateFailed {
+			t.Fatalf("error=%v terminal=%#v", err, terminal)
+		}
+	})
+
+	t.Run("context cancellation", func(t *testing.T) {
+		catalog, err := files.BuildCatalog(nil, host.AllSupportedExtensions())
+		if err != nil {
+			t.Fatal(err)
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		var terminal host.Event
+		err = host.NewRunner().Run(ctx, host.Request{
+			Profile: host.ProfileSphaira, Catalog: catalog, Connector: connector(transport.NewMemory(nil)),
+			Observe: func(event host.Event) { terminal = event },
+		})
+		if !errors.Is(err, context.Canceled) || terminal.State != host.StateStopping {
+			t.Fatalf("error=%v terminal=%#v", err, terminal)
+		}
+	})
+}
+
+func TestRunnerPreservesPartialSphairaWritesInFailedProgress(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "game.nsp")
+	if err := os.WriteFile(path, []byte("data"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := files.BuildCatalog([]string{path}, host.AllSupportedExtensions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	handshake := sphaira.EncodeCommand(sphaira.CommandQuit, 0, 0)
+	open := sphaira.EncodeCommand(sphaira.CommandOpen, 0, 0)
+	rangePacket := sphaira.EncodeData(0, 4, 0)
+	input := append(append(handshake[:], open[:]...), rangePacket[:]...)
+	writeErr := errors.New("write interrupted")
+	connection := &limitedConnection{
+		Memory: transport.NewMemory(input), remaining: 24 + len("game.nsp\n") + 24 + 24 + 2, err: writeErr,
+	}
+	var terminal host.Event
+	err = host.NewRunner().Run(context.Background(), host.Request{
+		Profile: host.ProfileSphaira, Catalog: catalog,
+		Connector: &scriptedConnector{connections: []host.Connection{connection}},
+		Observe:   func(event host.Event) { terminal = event },
+	})
+	progress := terminal.Progress[catalog.Entries()[0].ID]
+	if !errors.Is(err, writeErr) || terminal.State != host.StateFailed || progress.State != host.FileFailed ||
+		progress.UniqueServedBytes != 2 || progress.WireBytes != 2 {
+		t.Fatalf("error=%v terminal=%#v", err, terminal)
 	}
 }
 
@@ -414,6 +752,28 @@ type memoryConnection struct{ *transport.Memory }
 
 func (c *memoryConnection) Close() error                   { return nil }
 func (c *memoryConnection) Shutdown(context.Context) error { return nil }
+
+type limitedConnection struct {
+	*transport.Memory
+	remaining int
+	err       error
+}
+
+func (c *limitedConnection) Write(ctx context.Context, source []byte) (int, error) {
+	if c.remaining <= 0 {
+		return 0, c.err
+	}
+	if len(source) > c.remaining {
+		written, _ := c.Memory.Write(ctx, source[:c.remaining])
+		c.remaining = 0
+		return written, c.err
+	}
+	c.remaining -= len(source)
+	return c.Memory.Write(ctx, source)
+}
+
+func (c *limitedConnection) Close() error                   { return nil }
+func (c *limitedConnection) Shutdown(context.Context) error { return nil }
 
 type scriptedConnector struct {
 	connections []host.Connection

@@ -32,6 +32,9 @@ func TestCLIProfileContract(t *testing.T) {
 	if !strings.Contains(string(helpOutput), "-trace-protocol") {
 		t.Fatalf("--help does not expose bounded protocol tracing:\n%s", helpOutput)
 	}
+	if !strings.Contains(string(helpOutput), "installer profile: awoo, goldleaf, sphaira, dbi") {
+		t.Fatalf("--help does not preserve profile registry order:\n%s", helpOutput)
+	}
 
 	unknown := exec.Command(binary, "--profile", "automatic", "game.nsp")
 	unknownOutput, err := unknown.CombinedOutput()
@@ -49,6 +52,13 @@ func TestCLIProfileContract(t *testing.T) {
 		!strings.Contains(string(goldleafOutput), "WaitingForDevice") ||
 		!strings.Contains(string(goldleafOutput), "context deadline exceeded") {
 		t.Fatalf("Goldleaf routing result = %v\n%s", err, goldleafOutput)
+	}
+	sphaira := exec.Command(binary, "--timeout", "1ns", "--reset-on-connect=false", "--profile", "sphaira", path)
+	sphairaOutput, err := sphaira.CombinedOutput()
+	if err == nil || strings.Contains(string(sphairaOutput), "installer profile adapter is not implemented") ||
+		!strings.Contains(string(sphairaOutput), "WaitingForDevice") ||
+		!strings.Contains(string(sphairaOutput), "context deadline exceeded") {
+		t.Fatalf("Sphaira routing result = %v\n%s", err, sphairaOutput)
 	}
 
 	unsupported := []string{
@@ -80,5 +90,15 @@ func TestCLIProfileContract(t *testing.T) {
 		if err := json.Unmarshal([]byte(line), &record); err != nil || record["event"] != "catalog_validation" {
 			t.Fatalf("structured record = %q, %v", line, err)
 		}
+	}
+
+	rarPath := filepath.Join(t.TempDir(), "archive.rar")
+	if err := os.WriteFile(rarPath, []byte("archive"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rar := exec.Command(binary, "--profile", "sphaira", path, rarPath)
+	rarOutput, err := rar.CombinedOutput()
+	if err == nil || !strings.Contains(string(rarOutput), "archive.rar") || strings.Contains(string(rarOutput), "WaitingForDevice") {
+		t.Fatalf("RAR validation result = %v\n%s", err, rarOutput)
 	}
 }

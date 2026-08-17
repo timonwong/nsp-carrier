@@ -31,6 +31,13 @@ func TestProfileRegistryIsTheImmutableCapabilitySourceOfTruth(t *testing.T) {
 			AdapterAvailable: true,
 		},
 		{
+			ID: host.ProfileSphaira, DisplayName: "Sphaira", ProtocolFamily: "Sphaira SPH0",
+			Transport: host.TransportUSB, SupportedExtensions: []string{".nsp", ".nsz", ".xci", ".xcz", ".msp"},
+			WireNamespace: host.NamespaceFlatBasename, FilesystemAccess: host.FilesystemNone,
+			CompatibleVersions: []string{"1.0+"}, VerifiedVersions: []string{}, KnownIncompatibleVersions: []string{"0.13.3 and earlier"},
+			AdapterAvailable: true,
+		},
+		{
 			ID: host.ProfileDBI, DisplayName: "DBI", ProtocolFamily: "DBI0",
 			Transport: host.TransportUSB, SupportedExtensions: []string{".nsp", ".nsz", ".xci", ".xcz"},
 			WireNamespace: host.NamespaceFlatBasename, FilesystemAccess: host.FilesystemNone,
@@ -52,6 +59,73 @@ func TestProfileRegistryIsTheImmutableCapabilitySourceOfTruth(t *testing.T) {
 	}
 	if bytes.Contains(encoded, []byte(":null")) {
 		t.Fatalf("typed profile serialization contains null collection: %s", encoded)
+	}
+}
+
+func TestSphairaProfileOwnsMSPAndRejectsUnsafeWireNames(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "mod.msp")
+	if err := os.WriteFile(path, []byte("mod"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := files.BuildCatalog([]string{path}, host.AllSupportedExtensions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if validation, err := host.ValidateCatalog(host.ProfileSphaira, catalog); err != nil || len(validation) != 0 {
+		t.Fatalf("Sphaira validation = %#v, %v", validation, err)
+	}
+	for _, profile := range []host.ProfileID{host.ProfileAwoo, host.ProfileGoldleaf, host.ProfileDBI} {
+		validation, err := host.ValidateCatalog(profile, catalog)
+		if err != nil || len(validation) != 1 || validation[0].Code != host.ValidationUnsupportedExtension {
+			t.Fatalf("%s validation = %#v, %v", profile, validation, err)
+		}
+	}
+}
+
+func TestDiscoveryKeepsRARVisibleForProfileRejection(t *testing.T) {
+	root := t.TempDir()
+	for _, name := range []string{"game.nsp", "archive.rar"} {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(name), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	catalog, err := files.BuildCatalog([]string{root}, host.DiscoveryExtensions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	validation, err := host.ValidateCatalog(host.ProfileSphaira, catalog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(catalog.Entries()) != 2 || len(validation) != 1 || validation[0].Name != "archive.rar" || validation[0].Code != host.ValidationUnsupportedExtension {
+		t.Fatalf("entries=%#v validation=%#v", catalog.Entries(), validation)
+	}
+}
+
+func TestSphairaValidationRejectsSourceAbove48BitLimit(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "oversized.nsp")
+	file, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := file.Truncate(int64(1 << 48)); err != nil {
+		file.Close()
+		t.Skipf("filesystem cannot create 48-bit sparse test file: %v", err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := files.BuildCatalog([]string{path}, host.DiscoveryExtensions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	validation, err := host.ValidateCatalog(host.ProfileSphaira, catalog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(validation) != 1 || validation[0].Code != host.ValidationSourceTooLarge {
+		t.Fatalf("validation = %#v", validation)
 	}
 }
 
@@ -103,12 +177,14 @@ func TestAwooValidationRejectsNamesThatBreakTheWireList(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			validationErrors, err := host.ValidateCatalog(host.ProfileAwoo, catalog)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if len(validationErrors) != 1 || validationErrors[0].Code != host.ValidationInvalidWireName {
-				t.Fatalf("validation errors = %#v", validationErrors)
+			for _, profile := range []host.ProfileID{host.ProfileAwoo, host.ProfileSphaira} {
+				validationErrors, err := host.ValidateCatalog(profile, catalog)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if len(validationErrors) != 1 || validationErrors[0].Code != host.ValidationInvalidWireName {
+					t.Fatalf("%s validation errors = %#v", profile, validationErrors)
+				}
 			}
 		})
 	}

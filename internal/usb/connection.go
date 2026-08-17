@@ -17,9 +17,9 @@ const (
 )
 
 var (
-	ErrDeviceNotFound    = errors.New("DBI USB device not found")
-	ErrDeviceUnavailable = errors.New("DBI USB device temporarily unavailable")
-	ErrMultipleDevices   = errors.New("multiple DBI USB devices found")
+	ErrDeviceNotFound    = errors.New("installer USB device not found")
+	ErrDeviceUnavailable = errors.New("installer USB device temporarily unavailable")
+	ErrMultipleDevices   = errors.New("multiple installer USB devices found")
 	ErrClosed            = errors.New("USB connection closed")
 	ErrTransferActive    = errors.New("USB transfer still active")
 	ErrShutdownTimeout   = errors.New("USB shutdown timed out")
@@ -132,7 +132,7 @@ func Open(options OpenOptions) (*Connection, error) {
 	}
 	if options.ResetOnConnect {
 		if err := device.Reset(); err != nil {
-			return fail(fmt.Errorf("reset DBI device: %w", recoverableOpenError(err)))
+			return fail(fmt.Errorf("reset installer USB device: %w", recoverableOpenError(err)))
 		}
 		time.Sleep(time.Second)
 	}

@@ -1,6 +1,8 @@
 package protocoltrace_test
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/timonwong/nsp-carrier/internal/protocoltrace"
@@ -28,6 +30,16 @@ func TestBufferAssignsSequenceAndReturnsIndependentSnapshots(t *testing.T) {
 	again, _ := buffer.Snapshot()
 	if again[0].Operation != "file_range" {
 		t.Fatalf("snapshot aliases buffer: %#v", again[0])
+	}
+}
+
+func TestIntegrityVerdictsRemainExplicitWhenInvalid(t *testing.T) {
+	encoded, err := json.Marshal(protocoltrace.Record{IntegrityChecked: true, IntegrityValid: false})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(encoded), `"integrityChecked":true`) || !strings.Contains(string(encoded), `"integrityValid":false`) {
+		t.Fatalf("encoded record = %s", encoded)
 	}
 }
 

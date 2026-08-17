@@ -21,9 +21,9 @@
 
 ## Installer protocol expansion
 
-- explicit installer profiles: DBI, Awoo USB, and Goldleaf (implemented)
+- explicit installer profiles in Awoo, Goldleaf, Sphaira, DBI order (implemented)
 - independent clean-room protocol adapters over the shared USB transport
-  (DBI, Awoo, and Goldleaf implemented)
+  (DBI, Awoo, Goldleaf, and Sphaira implemented)
 - one shared host-session runner used by Wails and `usb-spike` (implemented)
 - protocol-neutral frozen source catalog with profile-owned wire projections
   (implemented)
@@ -40,6 +40,9 @@
   cable-removal, fresh-session reconnect, whole-source, and multi-file checks
   passed; create/write/delete/rename rejection and real command differential
   passed; exact version 1.2.0 verified)
+- Sphaira 1.0+ SPH0 adapter for `.nsp`, `.nsz`, `.xci`, `.xcz`, and `.msp`
+  (automated fixed-revision evidence implemented; Sphaira 1.0.6 real-device
+  matrix pending, so no exact version is verified)
 - scripted protocol fixtures and separate real-device acceptance matrices
 - no automatic protocol detection on the shared `057e:3000` USB identity
 

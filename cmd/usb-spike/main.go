@@ -79,7 +79,7 @@ func run(arguments []string) error {
 	log := logger{json: config.json, verbose: config.verbose}
 	var catalog *files.Catalog
 	if !config.probe {
-		catalog, err = files.BuildCatalog(inputs, host.AllSupportedExtensions())
+		catalog, err = files.BuildCatalog(inputs, host.DiscoveryExtensions())
 		if err != nil {
 			return err
 		}
@@ -129,7 +129,7 @@ func parseOptions(arguments []string) (options, []string, error) {
 	flags.BoolVar(&config.verbose, "verbose", false, "include descriptor and local path details")
 	flags.BoolVar(&config.json, "json", false, "emit newline-delimited JSON logs")
 	flags.BoolVar(&config.probe, "probe", false, "discover and claim installer USB endpoints without serving files")
-	flags.BoolVar(&config.traceProtocol, "trace-protocol", false, "emit up to 300 payload-safe Awoo/Goldleaf protocol metadata records per session")
+	flags.BoolVar(&config.traceProtocol, "trace-protocol", false, "emit up to 300 payload-safe installer protocol metadata records per session")
 	flags.BoolVar(&config.resetOnConnect, "reset-on-connect", true, "reset the installer USB device before claiming it")
 	profiles := host.Profiles()
 	profileIDs := make([]string, 0, len(profiles))
@@ -220,6 +220,8 @@ func runConfigured(ctx context.Context, config options, catalog *files.Catalog, 
 					"sequence": record.Sequence, "direction": record.Direction,
 					"operation": record.Operation, "command": record.Command,
 					"payload_bytes": record.PayloadBytes,
+					"index":         record.Index, "integrity_checked": record.IntegrityChecked,
+					"integrity_valid": record.IntegrityValid,
 				}
 				if record.SourceID != "" {
 					fields["source_id"] = record.SourceID
