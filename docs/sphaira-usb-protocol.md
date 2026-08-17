@@ -52,7 +52,10 @@ before USB is opened. `.rar` and SPH0 stream mode are not supported.
 Offsets are 64-bit and requested sizes are `uint32`, capped at 16 MiB. A valid
 request may end beyond EOF; the response carries the actual short length and
 payload CRC32C, followed by exactly that many bytes. Offset beyond EOF,
-arithmetic overflow, non-close zero size, and oversized ranges are rejected.
+arithmetic overflow, and oversized ranges are rejected. A zero-size request at
+a non-zero offset is a valid empty read and receives `RESULT_OK` with an empty
+payload CRC32C. Sphaira's XCI parser emits this form for an empty HFS0 file
+table. Only the exact zero-offset, zero-size, zero-CRC packet closes the file.
 
 Only successfully written payload bytes enter progress. Repeated and
 out-of-order intervals are unioned. Because Sphaira consumes the source through
