@@ -104,6 +104,35 @@ describe('installer profile UI', () => {
     expect(screen.getByText('Fully Served ≠ installed. Compatibility ≠ verified version.')).toBeTruthy()
   })
 
+  it('labels installer-driven file states clearly', async () => {
+    let sink: ((snapshot: unknown) => void) | undefined
+    vi.mocked(EventsOn).mockImplementation((_event: string, callback: (...data: any[]) => void) => {
+      sink = (snapshot: unknown) => callback(snapshot)
+      return () => {}
+    })
+    render(App)
+    await screen.findByRole('button', {name: 'Backend Goldleaf'})
+    sink?.({
+      ...baseSnapshot,
+      state: 'Completed', sessionId: 'session-1',
+      items: [
+        {
+          id: 'source-1', name: 'requested.nsp', path: '/selected/requested.nsp', size: 10,
+          selected: true, conflict: false, status: 'Requested', uniqueServedBytes: 0,
+          wireBytes: 0, progress: 0, requested: true, validationErrors: [],
+        },
+        {
+          id: 'source-2', name: 'skipped.nsp', path: '/selected/skipped.nsp', size: 10,
+          selected: true, conflict: false, status: 'NotRequested', uniqueServedBytes: 0,
+          wireBytes: 0, progress: 0, requested: false, validationErrors: [],
+        },
+      ],
+      selectedCount: 2, selectedBytes: 20, requestedBytes: 10,
+    } as never)
+    expect(await screen.findByText('Requested by Installer')).toBeTruthy()
+    expect(screen.getByText('Skipped by Installer')).toBeTruthy()
+  })
+
   it('shows item-specific validation without deselecting the file', async () => {
     const validationError = {
       sourceId: 'source-1', name: 'compressed.nsz', code: 'unsupported-extension',
