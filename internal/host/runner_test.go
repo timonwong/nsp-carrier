@@ -64,10 +64,11 @@ func TestRunnerServesCompleteSphairaSessionAtTheHostBoundary(t *testing.T) {
 	}
 	handshake := sphaira.EncodeCommand(sphaira.CommandQuit, 0, 0)
 	open := sphaira.EncodeCommand(sphaira.CommandOpen, 1, 0)
+	zeroLengthRead := sphaira.EncodeData(1, 0, 0)
 	rangePacket := sphaira.EncodeData(5, 10, 0)
 	closePacket := sphaira.EncodeData(0, 0, 0)
 	quit := sphaira.EncodeCommand(sphaira.CommandQuit, 0, 0)
-	input := append(append(append(append(handshake[:], open[:]...), rangePacket[:]...), closePacket[:]...), quit[:]...)
+	input := append(append(append(append(append(handshake[:], open[:]...), zeroLengthRead[:]...), rangePacket[:]...), closePacket[:]...), quit[:]...)
 	link := transport.NewMemory(input, transport.WithMaxRead(7), transport.WithMaxWrite(5), transport.WithReadFaults(transport.ErrTimeout))
 	var terminal host.Event
 	err = host.NewRunner().Run(context.Background(), host.Request{
@@ -82,6 +83,7 @@ func TestRunnerServesCompleteSphairaSessionAtTheHostBoundary(t *testing.T) {
 	want := append([]byte{}, sphairaPacket(sphaira.EncodeResult(sphaira.ResultOK, uint32(len(list)), 0))...)
 	want = append(want, list...)
 	want = append(want, sphairaPacket(sphaira.EncodeResult(sphaira.ResultOK, 0, uint32(len("file-1-data"))))...)
+	want = append(want, sphairaPacket(sphaira.EncodeResult(sphaira.ResultOK, 0, sphaira.PayloadCRC32C(nil)))...)
 	payload := []byte("1-data")
 	want = append(want, sphairaPacket(sphaira.EncodeResult(sphaira.ResultOK, uint32(len(payload)), sphaira.PayloadCRC32C(payload)))...)
 	want = append(want, payload...)
@@ -93,19 +95,22 @@ func TestRunnerServesCompleteSphairaSessionAtTheHostBoundary(t *testing.T) {
 	entry := catalog.Entries()[1]
 	progress := terminal.Progress[entry.ID]
 	if terminal.State != host.StateCompleted || progress.State != host.FileFullyServed ||
-		progress.UniqueServedBytes != 6 || progress.RangeRequests != 1 {
+		progress.UniqueServedBytes != 6 || progress.RangeRequests != 2 {
 		t.Fatalf("terminal event = %#v", terminal)
 	}
 	if len(terminal.ProtocolTrace) == 0 {
 		t.Fatal("Sphaira session emitted no protocol trace")
 	}
-	var sawRangeIntegrity bool
+	var sawRangeIntegrity, sawZeroLengthRead bool
 	for _, record := range terminal.ProtocolTrace {
 		if record.Operation == "range" && record.IntegrityChecked && record.IntegrityValid && record.Offset == 5 && record.Size == 10 {
 			sawRangeIntegrity = true
 		}
+		if record.Operation == "range_result" && record.Offset == 1 && record.Size == 0 && record.PayloadBytes == 0 {
+			sawZeroLengthRead = true
+		}
 	}
-	if !sawRangeIntegrity {
+	if !sawRangeIntegrity || !sawZeroLengthRead {
 		t.Fatalf("trace = %#v", terminal.ProtocolTrace)
 	}
 }

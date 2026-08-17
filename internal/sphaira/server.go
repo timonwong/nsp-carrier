@@ -156,7 +156,7 @@ func (s *Server) serveFile(ctx context.Context, link transport.Duplex, index uin
 		s.reportInbound("range", packet, protocoltrace.Record{
 			SourceID: entry.ID, Index: index, Offset: offset, Size: uint64(requested),
 		})
-		if packet.Arg5 != 0 || requested == 0 || requested > MaxRangeSize || offset > uint64(entry.Size) || offset+uint64(requested) < offset {
+		if packet.Arg5 != 0 || requested > MaxRangeSize || offset > uint64(entry.Size) || offset+uint64(requested) < offset {
 			return s.semanticError(ctx, link, fmt.Errorf("%w: offset=%d size=%d", ErrInvalidRequest, offset, requested))
 		}
 

@@ -97,6 +97,36 @@ func TestFileCloseDoesNotCompleteWithoutFinalQuit(t *testing.T) {
 	}
 }
 
+func TestServerAcceptsZeroLengthReadAwayFromClose(t *testing.T) {
+	catalog := sphairaCatalog(t, "game.xci", []byte("content"))
+	server, err := sphaira.NewServer(catalog, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handshake := sphaira.EncodeCommand(sphaira.CommandQuit, 0, 0)
+	open := sphaira.EncodeCommand(sphaira.CommandOpen, 0, 0)
+	zeroLengthRead := sphaira.EncodeData(1, 0, 0)
+	closePacket := sphaira.EncodeData(0, 0, 0)
+	quit := sphaira.EncodeCommand(sphaira.CommandQuit, 0, 0)
+	input := append(append(append(append(handshake[:], open[:]...), zeroLengthRead[:]...), closePacket[:]...), quit[:]...)
+	link := transport.NewMemory(input)
+
+	if err := server.Serve(context.Background(), link); err != nil {
+		t.Fatal(err)
+	}
+
+	list := []byte("game.xci\n")
+	filenameList := sphaira.EncodeResult(sphaira.ResultOK, uint32(len(list)), 0)
+	openResult := sphaira.EncodeResult(sphaira.ResultOK, 0, uint32(len("content")))
+	emptyReadResult := sphaira.EncodeResult(sphaira.ResultOK, 0, sphaira.PayloadCRC32C(nil))
+	closeAck := sphaira.EncodeResult(sphaira.ResultOK, 0, 0)
+	quitAck := sphaira.EncodeResult(sphaira.ResultOK, 0, 0)
+	want := append(append(append(append(append(filenameList[:], list...), openResult[:]...), emptyReadResult[:]...), closeAck[:]...), quitAck[:]...)
+	if !bytes.Equal(link.Written(), want) {
+		t.Fatalf("wire output = %x\nwant = %x", link.Written(), want)
+	}
+}
+
 func TestServerRepliesErrorThenTerminatesForSemanticFailures(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -133,7 +163,6 @@ func TestServerRejectsInvalidRangesAndSourceMutationWithResultError(t *testing.T
 		request [sphaira.PacketSize]byte
 		mutate  bool
 	}{
-		{name: "zero size away from close", request: sphaira.EncodeData(1, 0, 0)},
 		{name: "oversized range", request: sphaira.EncodeData(0, sphaira.MaxRangeSize+1, 0)},
 		{name: "offset beyond EOF", request: sphaira.EncodeData(8, 1, 0)},
 		{name: "unexpected request checksum", request: sphaira.EncodeData(0, 1, 1)},
