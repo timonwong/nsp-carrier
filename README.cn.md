@@ -36,7 +36,32 @@ UI 支持文件与递归文件夹选择、拖放、显式 profile 选择、队�
 3. 开始服务，然后在 Switch 的安装器中安装。
 4. 在应用中查看逐文件进度。`FullyServed`（已完整服务）表示宿主已发送安装器请求的每一个字节——并不表示 title 已安装。
 
-所选 profile 无法服务的文件会以明确的校验错误阻止 Start，而不会被静默跳过。在 Windows 上，应用能看到 Switch 之前，需要为其配置兼容的 USB 驱动（例如 WinUSB）。
+所选 profile 无法服务的文件会以明确的校验错误阻止 Start，而不会被静默跳过。
+
+平台相关配置——macOS 的 `libusb`、Windows 的 USB 驱动——见[安装](#安装)。
+
+## 安装
+
+### macOS
+
+macOS 通过 `libusb` 访问 USB。使用 Homebrew 安装：
+
+```sh
+brew install libusb
+```
+
+### Windows
+
+Switch 以裸 USB 设备的形式暴露，Windows 需要先安装兼容的 USB 驱动，`nsp-carrier` 才能看到它。使用 [Zadig](https://zadig.akeo.ie/) 安装：
+
+1. 从 <https://zadig.akeo.ie/> 下载并运行 Zadig。
+2. 用 USB 线把 Switch 连接到 PC。
+3. 让安装器进入 USB 模式——DBI 进入其 USB 模式（DBIbackend）；Awoo 选择“通过 USB 安装”；Goldleaf 打开 Remote PC 浏览器。
+4. 在 Zadig 中打开 *Options → List All Devices*，让 Switch 显示出来。
+5. 从下拉列表选择 Switch 设备——厂商 ID 为 `057E`（Nintendo），常见显示为 `DBI`、`USB composite device` 或 `057E:3000`；选择匹配的那一项。
+6. 目标驱动选择 **libusbK**（若不可用也可选 *WinUSB*）。
+7. 点击 *Replace Driver*（或 *Install Driver*），等待安装完成。
+8. 启动 `nsp-carrier`，确认应用能看到设备后再开始服务。
 
 ## 开发
 

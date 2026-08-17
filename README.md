@@ -60,9 +60,40 @@ Basic flow:
    byte the installer asked for — not that the title was installed.
 
 A file the selected profile cannot serve blocks Start with a clear
-validation error rather than being silently skipped. On Windows, configure a
-compatible USB driver (such as WinUSB) for the Switch before the app can see
-it.
+validation error rather than being silently skipped.
+
+Platform setup — `libusb` on macOS, a USB driver on Windows — is covered in
+[Installing](#installing).
+
+## Installing
+
+### macOS
+
+macOS uses `libusb` for USB access. Install it with Homebrew:
+
+```sh
+brew install libusb
+```
+
+### Windows
+
+The Switch exposes itself as a raw USB device, so Windows needs a compatible
+USB driver before `nsp-carrier` can see it. Install it with
+[Zadig](https://zadig.akeo.ie/):
+
+1. Download and run Zadig from <https://zadig.akeo.ie/>.
+2. Plug the Switch into the PC with a USB cable.
+3. Put your installer into USB mode — on DBI, enter its USB mode
+   (DBIbackend); on Awoo, choose USB install; on Goldleaf, open the Remote PC
+   browser.
+4. In Zadig, open *Options → List All Devices* so the Switch appears.
+5. Select the Switch from the dropdown — the vendor ID is `057E` (Nintendo)
+   and the product often appears as `DBI`, `USB composite device`, or
+   `057E:3000`. Choose the matching entry.
+6. Pick **libusbK** as the target driver (or *WinUSB* if libusbK is not
+   available).
+7. Click *Replace Driver* (or *Install Driver*) and wait for it to finish.
+8. Start `nsp-carrier` and confirm it sees the device before serving.
 
 ## Developing
 
