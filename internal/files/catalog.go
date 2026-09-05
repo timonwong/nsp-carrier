@@ -35,6 +35,39 @@ type Catalog struct {
 	byID    map[string]Entry
 }
 
+const discoveryExampleLimit = 3
+
+// DiscoverySkip records skipped inputs without making a mixed folder add fail.
+type DiscoverySkip struct {
+	Count    int
+	Examples []string
+}
+
+func (s *DiscoverySkip) add(path string) {
+	s.Count++
+	if len(s.Examples) < discoveryExampleLimit {
+		s.Examples = append(s.Examples, path)
+	}
+}
+
+type DiscoveryStats struct {
+	Unsupported DiscoverySkip
+	Duplicate   DiscoverySkip
+	Symlink     DiscoverySkip
+	Hidden      DiscoverySkip
+	Unreadable  DiscoverySkip
+}
+
+type DiscoveryResult struct {
+	Entries []Entry
+	Stats   DiscoveryStats
+}
+
+type discoveredFile struct {
+	path string
+	info fs.FileInfo
+}
+
 type DuplicateBasenameError struct {
 	Name  string
 	Paths []string
@@ -50,18 +83,41 @@ func (e *DuplicateBasenameError) Unwrap() error { return ErrDuplicateBasename }
 // preserving addition order. It intentionally keeps duplicate basenames so a
 // queue UI can present and resolve those conflicts before freezing a Catalog.
 func Discover(inputs []string, supportedExtensions []string) ([]Entry, error) {
+	result, err := DiscoverWithStats(inputs, supportedExtensions)
+	if err != nil {
+		return nil, err
+	}
+	return result.Entries, nil
+}
+
+// DiscoverWithStats is the reporting variant used by queue additions. It
+// filters unsupported content and continues past per-entry filesystem errors
+// so one bad item cannot prevent valid files in the same folder from being added.
+func DiscoverWithStats(inputs []string, supportedExtensions []string) (DiscoveryResult, error) {
 	var paths []string
 	seenPaths := make(map[string]struct{})
+	seenFiles := make([]discoveredFile, 0)
+	var stats DiscoveryStats
 	allowedExtensions := make(map[string]struct{}, len(supportedExtensions))
 	for _, extension := range supportedExtensions {
 		allowedExtensions[strings.ToLower(extension)] = struct{}{}
 	}
 
 	addFile := func(path string, info fs.FileInfo) error {
+		if strings.HasPrefix(info.Name(), ".") {
+			stats.Hidden.add(path)
+			return nil
+		}
 		if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+			if info.Mode()&os.ModeSymlink != 0 {
+				stats.Symlink.add(path)
+			} else {
+				stats.Unsupported.add(path)
+			}
 			return nil
 		}
 		if _, ok := allowedExtensions[strings.ToLower(filepath.Ext(path))]; !ok {
+			stats.Unsupported.add(path)
 			return nil
 		}
 		absolute, err := filepath.Abs(path)
@@ -70,9 +126,22 @@ func Discover(inputs []string, supportedExtensions []string) ([]Entry, error) {
 		}
 		absolute = filepath.Clean(absolute)
 		if _, ok := seenPaths[absolute]; ok {
+			stats.Duplicate.add(absolute)
 			return nil
 		}
+		fileInfo, err := os.Stat(absolute)
+		if err != nil {
+			stats.Unreadable.add(absolute)
+			return nil
+		}
+		for _, seen := range seenFiles {
+			if strings.EqualFold(seen.path, absolute) && os.SameFile(seen.info, fileInfo) {
+				stats.Duplicate.add(absolute)
+				return nil
+			}
+		}
 		seenPaths[absolute] = struct{}{}
+		seenFiles = append(seenFiles, discoveredFile{path: absolute, info: fileInfo})
 		paths = append(paths, absolute)
 		return nil
 	}
@@ -80,14 +149,15 @@ func Discover(inputs []string, supportedExtensions []string) ([]Entry, error) {
 	for _, input := range inputs {
 		info, err := os.Lstat(input)
 		if err != nil {
-			return nil, err
+			return DiscoveryResult{}, err
 		}
 		if info.Mode()&os.ModeSymlink != 0 {
+			stats.Symlink.add(input)
 			continue
 		}
 		if !info.IsDir() {
 			if err := addFile(input, info); err != nil {
-				return nil, err
+				return DiscoveryResult{}, err
 			}
 			continue
 		}
@@ -95,9 +165,21 @@ func Discover(inputs []string, supportedExtensions []string) ([]Entry, error) {
 		var directoryPaths []string
 		err = filepath.WalkDir(input, func(path string, dirEntry fs.DirEntry, walkErr error) error {
 			if walkErr != nil {
-				return walkErr
+				stats.Unreadable.add(path)
+				if dirEntry != nil && dirEntry.IsDir() {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if path != input && strings.HasPrefix(dirEntry.Name(), ".") {
+				stats.Hidden.add(path)
+				if dirEntry.IsDir() {
+					return filepath.SkipDir
+				}
+				return nil
 			}
 			if path != input && dirEntry.Type()&os.ModeSymlink != 0 {
+				stats.Symlink.add(path)
 				if dirEntry.IsDir() {
 					return filepath.SkipDir
 				}
@@ -108,24 +190,28 @@ func Discover(inputs []string, supportedExtensions []string) ([]Entry, error) {
 			}
 			entryInfo, err := dirEntry.Info()
 			if err != nil {
-				return err
+				stats.Unreadable.add(path)
+				return nil
 			}
 			if entryInfo.Mode().IsRegular() {
 				directoryPaths = append(directoryPaths, path)
+			} else {
+				stats.Unsupported.add(path)
 			}
 			return nil
 		})
 		if err != nil {
-			return nil, err
+			return DiscoveryResult{}, err
 		}
 		sort.Strings(directoryPaths)
 		for _, path := range directoryPaths {
 			entryInfo, err := os.Lstat(path)
 			if err != nil {
-				return nil, err
+				stats.Unreadable.add(path)
+				continue
 			}
 			if err := addFile(path, entryInfo); err != nil {
-				return nil, err
+				return DiscoveryResult{}, err
 			}
 		}
 	}
@@ -134,7 +220,8 @@ func Discover(inputs []string, supportedExtensions []string) ([]Entry, error) {
 	for _, path := range paths {
 		info, err := os.Stat(path)
 		if err != nil {
-			return nil, err
+			stats.Unreadable.add(path)
+			continue
 		}
 		name := filepath.Base(path)
 		hash := sha256.Sum256([]byte(path))
@@ -148,7 +235,7 @@ func Discover(inputs []string, supportedExtensions []string) ([]Entry, error) {
 		}
 		entries = append(entries, entry)
 	}
-	return entries, nil
+	return DiscoveryResult{Entries: entries, Stats: stats}, nil
 }
 
 func BuildCatalog(inputs []string, supportedExtensions []string) (*Catalog, error) {

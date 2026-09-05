@@ -46,6 +46,61 @@ func TestBuildCatalogRecursesFiltersAndSkipsSymlinks(t *testing.T) {
 	}
 }
 
+func TestDiscoverWithStatsReportsSkippedFolderEntries(t *testing.T) {
+	root := t.TempDir()
+	nested := filepath.Join(root, "nested")
+	if err := os.Mkdir(nested, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, content := range map[string]string{
+		"game.nsp":                         "game",
+		"notes.txt":                        "ignore",
+		".hidden.nsp":                      "hidden",
+		filepath.Join("nested", "dlc.nsz"): "dlc",
+	} {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Symlink(filepath.Join(root, "game.nsp"), filepath.Join(root, "linked.xci")); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := files.DiscoverWithStats([]string{root, filepath.Join(root, "game.nsp")}, host.AllSupportedExtensions())
+	if err != nil {
+		t.Fatalf("DiscoverWithStats() error = %v", err)
+	}
+	if len(result.Entries) != 2 {
+		t.Fatalf("len(Entries) = %d, want 2: %#v", len(result.Entries), result.Entries)
+	}
+	if result.Stats.Unsupported.Count != 1 || result.Stats.Hidden.Count != 1 || result.Stats.Symlink.Count != 1 || result.Stats.Duplicate.Count != 1 {
+		t.Fatalf("stats = %#v", result.Stats)
+	}
+	if len(result.Stats.Unsupported.Examples) != 1 || result.Stats.Unsupported.Examples[0] != filepath.Join(root, "notes.txt") {
+		t.Fatalf("unsupported examples = %#v", result.Stats.Unsupported.Examples)
+	}
+}
+
+func TestDiscoverKeepsDistinctHardlinkPaths(t *testing.T) {
+	root := t.TempDir()
+	first := filepath.Join(root, "game.nsp")
+	second := filepath.Join(root, "alias.nsp")
+	if err := os.WriteFile(first, []byte("content"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Link(first, second); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := files.DiscoverWithStats([]string{first, second}, host.AllSupportedExtensions())
+	if err != nil {
+		t.Fatalf("DiscoverWithStats() error = %v", err)
+	}
+	if len(result.Entries) != 2 || result.Stats.Duplicate.Count != 0 {
+		t.Fatalf("entries=%#v stats=%#v", result.Entries, result.Stats)
+	}
+}
+
 func TestCatalogOpenRangeReadsFrozenSource(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "game.nsp")
 	if err := os.WriteFile(path, []byte("0123456789"), 0o644); err != nil {

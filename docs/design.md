@@ -107,6 +107,9 @@ User-visible file states are `Queued`, `Requested`, `Serving`, `FullyServed`,
   only Sphaira accepts `.msp` at Start.
 - Recursively scan added directories without following symbolic links.
 - Deduplicate identical absolute paths.
+- Skip hidden, unsupported, symbolic-link, and unreadable entries while adding
+  a directory; add valid files from a mixed directory and report the skipped
+  counts in the activity log.
 - Keep distinct paths with the same basename visible, but reject Start until
   basename conflicts are resolved.
 - New entries are checked by default; only checked entries enter the frozen

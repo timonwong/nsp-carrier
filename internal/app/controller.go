@@ -154,7 +154,7 @@ func (c *Controller) SetProfile(profileID string) (ViewSnapshot, error) {
 }
 
 func (c *Controller) Add(inputs []string) (ViewSnapshot, error) {
-	discovered, err := files.Discover(inputs, host.DiscoveryExtensions())
+	discovery, err := files.DiscoverWithStats(inputs, host.AllSupportedExtensions())
 	if err != nil {
 		return c.Snapshot(), err
 	}
@@ -169,8 +169,12 @@ func (c *Controller) Add(inputs []string) (ViewSnapshot, error) {
 		existing[item.Path] = struct{}{}
 	}
 	added := 0
-	for _, entry := range discovered {
+	for _, entry := range discovery.Entries {
 		if _, exists := existing[entry.Path]; exists {
+			discovery.Stats.Duplicate.Count++
+			if len(discovery.Stats.Duplicate.Examples) < 3 {
+				discovery.Stats.Duplicate.Examples = append(discovery.Stats.Duplicate.Examples, entry.Path)
+			}
 			continue
 		}
 		c.items = append(c.items, QueueItem{
@@ -181,11 +185,31 @@ func (c *Controller) Add(inputs []string) (ViewSnapshot, error) {
 		added++
 	}
 	c.revalidateLocked()
-	c.appendLogLocked("info", fmt.Sprintf("Added %d file(s)", added))
+	c.appendLogLocked("info", formatAddSummary(added, discovery.Stats))
 	snapshot, sink := c.snapshotLocked(), c.sink
 	c.mu.Unlock()
 	c.emit(sink, snapshot)
 	return snapshot, nil
+}
+
+func formatAddSummary(added int, stats files.DiscoveryStats) string {
+	parts := []string{fmt.Sprintf("Added %d file(s)", added)}
+	appendSkip := func(verb string, skip files.DiscoverySkip) {
+		if skip.Count == 0 {
+			return
+		}
+		part := fmt.Sprintf("%s %d", verb, skip.Count)
+		if len(skip.Examples) > 0 {
+			part += " (" + strings.Join(skip.Examples, ", ") + ")"
+		}
+		parts = append(parts, part)
+	}
+	appendSkip("ignored duplicate file(s)", stats.Duplicate)
+	appendSkip("skipped unsupported file(s)", stats.Unsupported)
+	appendSkip("skipped symlink(s)", stats.Symlink)
+	appendSkip("skipped hidden item(s)", stats.Hidden)
+	appendSkip("skipped unreadable item(s)", stats.Unreadable)
+	return strings.Join(parts, "; ")
 }
 
 func (c *Controller) Remove(ids []string) (ViewSnapshot, error) {
@@ -301,7 +325,7 @@ func (c *Controller) Start() (ViewSnapshot, error) {
 		c.mu.Unlock()
 		return c.Snapshot(), ErrQueueValidation
 	}
-	catalog, err := files.BuildCatalog(paths, host.DiscoveryExtensions())
+	catalog, err := files.BuildCatalog(paths, host.AllSupportedExtensions())
 	if err != nil {
 		c.mu.Unlock()
 		return c.Snapshot(), err
@@ -472,7 +496,7 @@ func (c *Controller) revalidateLocked() {
 	if len(paths) == 0 {
 		return
 	}
-	catalog, err := files.BuildCatalog(paths, host.DiscoveryExtensions())
+	catalog, err := files.BuildCatalog(paths, host.AllSupportedExtensions())
 	if err != nil {
 		return
 	}
