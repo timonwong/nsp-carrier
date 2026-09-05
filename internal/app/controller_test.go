@@ -251,7 +251,7 @@ func TestControllerPersistsIdleOnlyProfileAndRevalidatesWithoutMutatingSelection
 	close(releaseRunner)
 }
 
-func TestControllerRejectsRARBeforeStartInsteadOfSilentlySkippingIt(t *testing.T) {
+func TestControllerSkipsUnsupportedRARDuringAdd(t *testing.T) {
 	root := t.TempDir()
 	for _, name := range []string{"game.nsp", "archive.rar"} {
 		if err := os.WriteFile(filepath.Join(root, name), []byte(name), 0o644); err != nil {
@@ -268,11 +268,11 @@ func TestControllerRejectsRARBeforeStartInsteadOfSilentlySkippingIt(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(snapshot.Items) != 2 || snapshot.CanStart || len(snapshot.ValidationErrors) != 1 || snapshot.ValidationErrors[0].Name != "archive.rar" {
+	if len(snapshot.Items) != 1 || !snapshot.CanStart || len(snapshot.ValidationErrors) != 0 {
 		t.Fatalf("snapshot = %#v", snapshot)
 	}
-	if _, err := controller.Start(); !errors.Is(err, ErrQueueValidation) {
-		t.Fatalf("Start() error = %v", err)
+	if len(snapshot.Logs) == 0 || !strings.Contains(snapshot.Logs[len(snapshot.Logs)-1].Message, "skipped unsupported file(s) 1") {
+		t.Fatalf("add summary = %#v", snapshot.Logs)
 	}
 }
 
