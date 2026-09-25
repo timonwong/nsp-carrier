@@ -23,7 +23,7 @@
   - [Goldleaf 0.10+](https://github.com/XorTroll/Goldleaf)
   - [Sphaira 1.0+](https://github.com/NaGaa95/sphaira)
   - DBI
-- 文件与递归文件夹选择，支持拖放。
+- 文件与递归多文件夹选择，支持拖放。
 - 队列支持搜索与重复文件名校验。
 - 逐文件唯一字节进度、有界活动日志与类型化错误。
 - 开始/停止，宿主持有会话生命周期——重新连接会开启全新会话，绝不声称恢复传输。

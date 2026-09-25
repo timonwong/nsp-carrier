@@ -28,7 +28,7 @@ Representative queue and transfer-progress state:
   - [Goldleaf 0.10+](https://github.com/XorTroll/Goldleaf)
   - [Sphaira 1.0+](https://github.com/NaGaa95/sphaira)
   - DBI
-- File and recursive folder selection, with drag and drop.
+- File and recursive multi-folder selection, with drag and drop.
 - Queue with search and duplicate-basename validation.
 - Per-file unique-byte progress, bounded activity logs, and typed errors.
 - Start/Stop with a host-owned session lifecycle — a reconnect starts a
