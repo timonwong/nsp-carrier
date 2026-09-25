@@ -251,6 +251,41 @@ func TestControllerPersistsIdleOnlyProfileAndRevalidatesWithoutMutatingSelection
 	close(releaseRunner)
 }
 
+func TestControllerAddsOverlappingFoldersByAbsolutePath(t *testing.T) {
+	root := t.TempDir()
+	child := filepath.Join(root, "dlc")
+	if err := os.Mkdir(child, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "base.nsp"), []byte("base"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(child, "update.nsz"), []byte("update"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	controller := newController(func(context.Context, host.ProfileID, *files.Catalog, func(host.Event)) error {
+		return errors.New("runner should not start")
+	})
+	snapshot, err := controller.Add([]string{root, child})
+	if err != nil {
+		t.Fatalf("Add() error = %v", err)
+	}
+	if len(snapshot.Items) != 2 {
+		t.Fatalf("items = %#v", snapshot.Items)
+	}
+	names := map[string]bool{}
+	for _, item := range snapshot.Items {
+		names[item.Name] = true
+	}
+	if !names["base.nsp"] || !names["update.nsz"] {
+		t.Fatalf("items = %#v", snapshot.Items)
+	}
+	if len(snapshot.Logs) == 0 || !strings.Contains(snapshot.Logs[len(snapshot.Logs)-1].Message, "ignored duplicate file(s) 1") {
+		t.Fatalf("add summary = %#v", snapshot.Logs)
+	}
+}
+
 func TestControllerSkipsUnsupportedRARDuringAdd(t *testing.T) {
 	root := t.TempDir()
 	for _, name := range []string{"game.nsp", "archive.rar"} {

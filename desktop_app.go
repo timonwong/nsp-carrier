@@ -7,6 +7,7 @@ import (
 	"time"
 
 	appcore "github.com/timonwong/nsp-carrier/internal/app"
+	"github.com/timonwong/nsp-carrier/internal/dialog"
 	"github.com/timonwong/nsp-carrier/internal/host"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -14,8 +15,9 @@ import (
 const snapshotEvent = "nsp-carrier:snapshot"
 
 type DesktopApp struct {
-	ctx        context.Context
-	controller *appcore.Controller
+	ctx         context.Context
+	controller  *appcore.Controller
+	openFolders func() ([]string, error)
 }
 
 func NewDesktopApp() *DesktopApp {
@@ -89,14 +91,24 @@ func contentFileFilter() (string, string) {
 }
 
 func (a *DesktopApp) ChooseFolder() (appcore.ViewSnapshot, error) {
-	path, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
-		Title:           "Add a folder recursively",
-		ResolvesAliases: true,
-	})
-	if err != nil || path == "" {
+	openFolders := a.openFolders
+	if openFolders == nil {
+		openFolders = dialog.OpenFolders
+	}
+	paths, err := openFolders()
+	if dialog.IsSingleFolderFallback(err) {
+		path, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+			Title:           dialog.FolderDialogTitle,
+			ResolvesAliases: true,
+		})
+		if err != nil || path == "" {
+			return a.controller.Snapshot(), err
+		}
+		paths = []string{path}
+	} else if err != nil || len(paths) == 0 {
 		return a.controller.Snapshot(), err
 	}
-	return a.controller.Add([]string{path})
+	return a.controller.Add(paths)
 }
 
 func (a *DesktopApp) AddPaths(paths []string) (appcore.ViewSnapshot, error) {

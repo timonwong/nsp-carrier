@@ -167,7 +167,7 @@ state into an installation claim.
 
 ## UI scope
 
-The Wails v2 UI provides file/folder addition, drag and drop, queue checkboxes,
+The Wails v2 UI provides file addition, recursive multi-folder addition, drag and drop, queue checkboxes,
 removal, clear, search, Start/Stop, connection and session state, unique-byte
 progress, structured logs, typed errors, and Light/Dark/Auto theme. The UI
 supports English and Simplified Chinese (`zh-CN`). It follows the
