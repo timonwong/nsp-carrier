@@ -76,7 +76,9 @@
   {:else if name === "sidebar"}
     <rect x="2" y="3" width="12" height="10" rx="1.8" /><path d="M6.2 3v10" />
   {:else if name === "trash"}
-    <path d="M2.8 4.5h10.4M6.2 4.5V3h3.6v1.5" /><path d="M4 4.5l.6 8.2c0 .5.4.8.9.8h5c.5 0 .9-.3.9-.8l.6-8.2" />
+    <path d="M2.8 4.5h10.4M6.2 4.5V3h3.6v1.5" /><path
+      d="M4 4.5l.6 8.2c0 .5.4.8.9.8h5c.5 0 .9-.3.9-.8l.6-8.2"
+    />
     <path d="M6.7 7v4M9.3 7v4" />
   {/if}
 </svg>
