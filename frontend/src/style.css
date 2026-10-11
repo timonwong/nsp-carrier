@@ -28,9 +28,7 @@
   --info: #2f6bff;
   --info-soft: rgb(47 107 255 / 10%);
   --focus: 0 0 0 3px rgb(240 70 43 / 28%);
-  --popover-shadow:
-    0 0 0 0.5px rgb(0 0 0 / 18%),
-    0 10px 30px rgb(0 0 0 / 16%);
+  --popover-shadow: 0 0 0 0.5px rgb(0 0 0 / 18%), 0 10px 30px rgb(0 0 0 / 16%);
   color-scheme: light;
 }
 
@@ -57,9 +55,7 @@
   --err-soft: rgb(255 107 94 / 12%);
   --info: #6e9bff;
   --info-soft: rgb(110 155 255 / 14%);
-  --popover-shadow:
-    0 0 0 0.5px rgb(255 255 255 / 14%),
-    0 10px 30px rgb(0 0 0 / 50%);
+  --popover-shadow: 0 0 0 0.5px rgb(255 255 255 / 14%), 0 10px 30px rgb(0 0 0 / 50%);
   color-scheme: dark;
 }
 
@@ -87,9 +83,7 @@
     --err-soft: rgb(255 107 94 / 12%);
     --info: #6e9bff;
     --info-soft: rgb(110 155 255 / 14%);
-    --popover-shadow:
-      0 0 0 0.5px rgb(255 255 255 / 14%),
-      0 10px 30px rgb(0 0 0 / 50%);
+    --popover-shadow: 0 0 0 0.5px rgb(255 255 255 / 14%), 0 10px 30px rgb(0 0 0 / 50%);
     color-scheme: dark;
   }
 }

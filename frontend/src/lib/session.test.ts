@@ -25,7 +25,9 @@ describe("itemStatusKey", () => {
 
   it("keeps the transfer status for an unselected item with validation errors", () => {
     expect(
-      itemStatusKey(item({ selected: false, validationErrors: [{ code: "unsupported-extension" }] })),
+      itemStatusKey(
+        item({ selected: false, validationErrors: [{ code: "unsupported-extension" }] }),
+      ),
     ).toBe("Queued");
   });
 

@@ -34,7 +34,7 @@ vi.mock("@wailsio/runtime", async (importOriginal) => {
   return { ...runtime, Events: { ...runtime.Events, On: vi.fn() } };
 });
 
-const profile = (patch: Record<string, unknown>) => ({
+const profile = <T extends Record<string, unknown>>(patch: T) => ({
   transport: "usb",
   wireNamespace: "flat-basename",
   filesystemAccess: "none",

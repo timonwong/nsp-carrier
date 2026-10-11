@@ -64,7 +64,9 @@
         });
       case "WaitingForDevice":
       case "Connected":
-        return interpolate(copy[`session.detail.${state}` as keyof Messages], { profile: profileName });
+        return interpolate(copy[`session.detail.${state}` as keyof Messages], {
+          profile: profileName,
+        });
       case "Serving": {
         const current = snapshot.items.find((i) => i.status === "Serving");
         return current

@@ -51,10 +51,7 @@ export function itemTone(key: ItemStatusKey): Tone {
   }
 }
 
-export function sessionTone(snapshot: {
-  state: string;
-  validationErrors: unknown[] | null;
-}): Tone {
+export function sessionTone(snapshot: { state: string; validationErrors: unknown[] | null }): Tone {
   switch (snapshot.state) {
     case "WaitingForDevice":
     case "Connected":

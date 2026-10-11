@@ -64,7 +64,9 @@
   );
   const mixed = $derived(snapshot.selectedCount > 0 && !allSelected);
   const codes = $derived((snapshot.validationErrors ?? []).map((error) => String(error.code)));
-  const unsupportedCount = $derived(codes.filter((code) => code === "unsupported-extension").length);
+  const unsupportedCount = $derived(
+    codes.filter((code) => code === "unsupported-extension").length,
+  );
   const duplicate = $derived(snapshot.hasConflict || codes.includes("duplicate-wire-name"));
   const extensions = $derived(
     (profile?.supportedExtensions ?? []).map((extension) => extension.slice(1).toUpperCase()),
@@ -173,10 +175,13 @@
     <div class="strip warn" role="status">
       <Icon name="warn" size={14} />
       <strong
-        >{interpolate(copy[unsupportedCount === 1 ? "issue.unsupported.one" : "issue.unsupported.many"], {
-          count: unsupportedCount,
-          profile: profileName,
-        })}</strong
+        >{interpolate(
+          copy[unsupportedCount === 1 ? "issue.unsupported.one" : "issue.unsupported.many"],
+          {
+            count: unsupportedCount,
+            profile: profileName,
+          },
+        )}</strong
       >
       <span>{copy["issue.unsupported.fix"]}</span>
     </div>
@@ -246,7 +251,11 @@
               class:err={key === "Interrupted" || key === "Failed"}
             >
               <span
-                style:width="{key === 'FullyServed' ? 100 : key === 'Requested' ? 100 : Math.min(item.progress, 100)}%"
+                style:width="{key === 'FullyServed'
+                  ? 100
+                  : key === 'Requested'
+                    ? 100
+                    : Math.min(item.progress, 100)}%"
               ></span>
             </span>
             <span class="pct num">{percent(item, key)}</span>
