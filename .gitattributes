@@ -7,3 +7,4 @@ frontend/**/*.js text eol=lf
 frontend/**/*.json text eol=lf
 frontend/**/*.svelte text eol=lf
 frontend/**/*.ts text eol=lf
+frontend/**/*.yaml text eol=lf
