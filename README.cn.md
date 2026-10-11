@@ -10,7 +10,7 @@
 
 应用只报告它经 USB 能够观测到的内容：哪些文件已服务、每次传输进行到哪一步。它不是安装器、不是 MTP 服务器，也不能证明某个 title 已安装。
 
-![NSP Carrier 桌面应用](docs/assets/nsp-carrier-desktop.jpg)
+![NSP Carrier 桌面应用](docs/assets/nsp-carrier-desktop.png)
 
 具有代表性的队列与传输进度状态：
 

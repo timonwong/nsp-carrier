@@ -17,6 +17,7 @@ coverage.out
 /frontend/dist/*
 !/frontend/dist/.gitkeep
 /frontend/node_modules/
+/frontend/preview/out/
 /frontend/package.json.md5
 /wails_windows_*.syso
 

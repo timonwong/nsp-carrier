@@ -31,7 +31,7 @@ func main() {
 		Height:           760,
 		MinWidth:         860,
 		MinHeight:        620,
-		BackgroundColour: application.NewRGB(246, 247, 249),
+		BackgroundColour: application.NewRGB(247, 247, 248),
 		EnableFileDrop:   true,
 		Mac: application.MacWindow{
 			TitleBar:   application.MacTitleBarHiddenInset,

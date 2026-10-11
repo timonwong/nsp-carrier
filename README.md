@@ -15,7 +15,7 @@ The app reports only what it can observe over USB: which files were served
 and how far each transfer got. It is not an installer, an MTP server, or
 proof that a title was installed.
 
-![NSP Carrier desktop application](docs/assets/nsp-carrier-desktop.jpg)
+![NSP Carrier desktop application](docs/assets/nsp-carrier-desktop.png)
 
 Representative queue and transfer-progress state:
 
