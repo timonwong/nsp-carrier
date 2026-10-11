@@ -263,9 +263,9 @@
     transition: grid-template-columns 0.16s ease;
   }
 
-  /* Wide enough to clear the macOS traffic lights above the rail. */
+  /* macOS 26 traffic lights span x 19–79pt; 96px leaves even margins on both sides. */
   .app-shell.rail {
-    grid-template-columns: 76px minmax(0, 1fr);
+    grid-template-columns: 96px minmax(0, 1fr);
   }
 
   .main {

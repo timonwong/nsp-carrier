@@ -57,19 +57,7 @@
 
 <aside class="sidebar" class:collapsed>
   <div class="drag-zone"></div>
-  <div class="head">
-    <h2 id="installer-heading" class:visually-hidden={collapsed}>{copy["sidebar.installer"]}</h2>
-    <button
-      type="button"
-      class="toggle"
-      aria-label={copy[collapsed ? "sidebar.expand" : "sidebar.collapse"]}
-      aria-expanded={!collapsed}
-      onclick={ontoggle}
-    >
-      <Icon name="sidebar" size={14} />
-      <kbd>⌘\</kbd>
-    </button>
-  </div>
+  <h2 id="installer-heading" class:visually-hidden={collapsed}>{copy["sidebar.installer"]}</h2>
   <div class="profiles" role="radiogroup" aria-labelledby="installer-heading">
     {#each profiles as profile, index (profile.id)}
       {@const active = profile.id === activeProfile}
@@ -152,6 +140,16 @@
           onlanguage(value as LocaleChoice);
         }}
       />
+      <button
+        type="button"
+        class="toggle"
+        aria-label={copy[collapsed ? "sidebar.expand" : "sidebar.collapse"]}
+        aria-expanded={!collapsed}
+        onclick={ontoggle}
+      >
+        <Icon name="sidebar" size={14} />
+        <kbd>⌘\</kbd>
+      </button>
     </div>
   </footer>
 </aside>
@@ -177,35 +175,30 @@
     --wails-draggable: drag;
   }
 
-  .head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 0 8px 8px;
-  }
-
-  .collapsed .head {
-    justify-content: center;
-    padding-left: 0;
-  }
-
   h2 {
     margin: 0;
+    padding: 0 8px 8px;
     font-size: 11px;
     font-weight: 600;
     color: var(--faint);
   }
 
+  /* Matches MenuButton's .tool so the footer reads as one toolbar. */
   .toggle {
-    height: 22px;
-    padding: 0 5px;
+    height: 26px;
+    margin-left: auto;
+    padding: 0 7px;
     border: 0;
-    border-radius: 5px;
+    border-radius: 6px;
     background: none;
     display: flex;
     align-items: center;
-    gap: 5px;
-    color: var(--faint);
+    gap: 6px;
+    color: var(--muted);
+  }
+
+  .collapsed .toggle {
+    margin-left: 0;
   }
 
   .toggle kbd {
