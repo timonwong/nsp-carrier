@@ -45,11 +45,7 @@
 
   // All-caps names (DBI) are already short; others read best as two letters.
   function monogram(name: string): string {
-    const words = name.split(/\s+/);
-    const word = (words[0].toLowerCase() === "backend" ? words[1] : words[0]).replace(
-      /[^\p{L}\p{N}]/gu,
-      "",
-    );
+    const word = name.split(/\s+/)[0].replace(/[^\p{L}\p{N}]/gu, "");
     if (word === word.toUpperCase()) return word.slice(0, 3);
     return word.charAt(0).toUpperCase() + word.slice(1, 2).toLowerCase();
   }
