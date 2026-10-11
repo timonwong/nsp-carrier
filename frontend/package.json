@@ -32,6 +32,7 @@
     "@types/node": "24.13.3",
     "jsdom": "^29.1.1",
     "oxfmt": "0.63.0",
+    "playwright": "^1.64.0",
     "svelte": "^5.55.7",
     "svelte-check": "^4.0.0",
     "svelte-preprocess": "^6.0.3",
