@@ -1,0 +1,7 @@
+# Keep versions in sync with go.mod, frontend/package.json (packageManager)
+# and WAILS_VERSION in the Makefile and CI.
+[tools]
+go = "1.26"
+node = "24"
+pnpm = "11.25.0"
+"go:github.com/wailsapp/wails/v3/cmd/wails3" = "v3.0.0-beta.28"

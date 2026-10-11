@@ -5,17 +5,20 @@ source; end users do not need it.
 
 ## Build prerequisites
 
-On macOS, install the CGO and frontend dependencies. The frontend uses
-[pnpm](https://pnpm.io). Activate the version pinned in `frontend/package.json`
-for commands run from the repository root, where Corepack cannot see that file.
+On macOS, install the CGO dependencies, then the toolchain pinned in
+`mise.toml` (Go, Node.js, [pnpm](https://pnpm.io) and the Wails CLI):
 
 ```sh
 brew install libusb pkgconf
-corepack enable
-corepack install --global pnpm@11.25.0
+mise install
 make deps
 make ui-install
 ```
+
+Without [mise](https://mise.jdx.dev), install Go and Node.js yourself, run
+`make wails-install`, and activate the pinned pnpm with
+`corepack enable && corepack install --global pnpm@11.25.0` (Corepack cannot see
+`frontend/package.json` from the repository root).
 
 `make check` runs the Go and frontend tests, race checks, fuzz smoke tests,
 static analysis, and local builds.
