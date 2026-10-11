@@ -41,8 +41,6 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             dist/*.zip \
             dist/*.zip.sha256 \
-            dist/*.tar.gz \
-            dist/*.tar.gz.sha256 \
             --verify-tag \
             --title "$GITHUB_REF_NAME" \
             --generate-notes

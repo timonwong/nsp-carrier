@@ -79,8 +79,6 @@ Download the app from the
   into Applications.
 - **Windows:** unzip `nsp-carrier-windows-amd64.zip` and run
   `nsp-carrier.exe`.
-- **Linux:** extract `nsp-carrier-linux-amd64.tar.gz` and run
-  `nsp-carrier`. Install GTK 3, WebKit2GTK 4.1, and libusb first.
 
 Releases are not code-signed or notarised. On macOS, open the app the first
 time with right-click → Open to bypass Gatekeeper.
@@ -116,11 +114,6 @@ If it cannot see the device or the binding is incompatible, use
    available).
 7. Click *Replace Driver* (or *Install Driver*) and wait for it to finish.
 8. Start `nsp-carrier` and confirm it sees the device before serving.
-
-#### Linux
-
-Install GTK 3, WebKit2GTK 4.1, and libusb from your distribution's package
-manager. Linux builds have not passed a real-device acceptance gate.
 
 For source development instructions, see [DEVELOP.md](DEVELOP.md).
 

@@ -156,21 +156,13 @@ jobs:
           ditto -c -k --sequesterRsrc --keepParent 'bin/NSP Carrier.app' nsp-carrier-macos-arm64.zip
           shasum -a 256 nsp-carrier-macos-arm64.zip > nsp-carrier-macos-arm64.zip.sha256
 
-      - name: Package Linux artifact
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          tar -C bin -czf nsp-carrier-linux-amd64.tar.gz nsp-carrier
-          sha256sum nsp-carrier-linux-amd64.tar.gz > nsp-carrier-linux-amd64.tar.gz.sha256
-
       - name: Upload artifact
+        if: runner.os != 'Linux'
         uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
           path: |
             ${{ matrix.artifact }}.zip
             ${{ matrix.artifact }}.zip.sha256
-            ${{ matrix.artifact }}.tar.gz
-            ${{ matrix.artifact }}.tar.gz.sha256
           if-no-files-found: error
           retention-days: 7
