@@ -11,7 +11,7 @@
   "packageRules": [
     {
       "groupName": "Wails v3 beta",
-      "matchPackageNames": [
+      "matchDepNames": [
         "github.com/wailsapp/wails/v3",
         "@wailsio/runtime",
         "go:github.com/wailsapp/wails/v3/cmd/wails3"
@@ -22,6 +22,12 @@
       "groupName": "mise toolchain",
       "matchManagers": ["mise"],
       "matchDepNames": ["go", "node", "pnpm"]
+    },
+    {
+      "groupName": "mise toolchain",
+      "matchManagers": ["npm"],
+      "matchDepNames": ["pnpm"],
+      "matchDepTypes": ["packageManager"]
     }
   ]
 }
