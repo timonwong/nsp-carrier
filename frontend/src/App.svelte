@@ -3,6 +3,7 @@
   import {
     ChooseFiles,
     ChooseFolder,
+    ClearQueue,
     GetSnapshot,
     Remove,
     SetAllSelected,
@@ -24,6 +25,7 @@
   const snapshotEvent = "nsp-carrier:snapshot";
   const themeKey = "nsp-carrier-theme";
   const activityKey = "nsp-carrier-activity-open";
+  const sidebarKey = "nsp-carrier-sidebar-collapsed";
 
   let snapshot = $state(
     toViewSnapshot({ state: "Idle", items: [], logs: [], profiles: [], validationErrors: [] }),
@@ -36,6 +38,7 @@
   let themeMenuOpen = $state(false);
   let languageMenuOpen = $state(false);
   let activityOpen = $state(localStorage.getItem(activityKey) === "1");
+  let sidebarCollapsed = $state(localStorage.getItem(sidebarKey) === "1");
   let bytesPerSecond = $state(0);
 
   const meter = new ThroughputMeter();
@@ -49,6 +52,10 @@
 
   $effect(() => {
     localStorage.setItem(activityKey, activityOpen ? "1" : "0");
+  });
+
+  $effect(() => {
+    localStorage.setItem(sidebarKey, sidebarCollapsed ? "1" : "0");
   });
 
   onMount(() => {
@@ -122,6 +129,15 @@
     if (snapshot.canStart && !working) void run(Start);
   }
 
+  function removeSelected() {
+    const ids = snapshot.items.filter((item) => item.selected).map((item) => item.id);
+    if (canMutate() && ids.length > 0) void run(() => Remove(ids));
+  }
+
+  function clearQueue() {
+    if (canMutate() && snapshot.items.length > 0) void run(ClearQueue);
+  }
+
   function selectProfile(id: string) {
     if (canMutate() && id !== snapshot.activeProfile) void run(() => SetProfile(id));
   }
@@ -129,6 +145,10 @@
   function setTheme(next: Theme) {
     theme = next;
     localStorage.setItem(themeKey, next);
+  }
+
+  function isTextField(target: EventTarget | null): boolean {
+    return target instanceof HTMLInputElement && target.type !== "checkbox";
   }
 
   function onKeydown(event: KeyboardEvent) {
@@ -146,6 +166,12 @@
       event.preventDefault();
       if (event.shiftKey) addFolder();
       else addFiles();
+    } else if (key === "\\") {
+      event.preventDefault();
+      sidebarCollapsed = !sidebarCollapsed;
+    } else if (key === "backspace" && !isTextField(event.target)) {
+      event.preventDefault();
+      removeSelected();
     } else if (key === "f" && filterInput) {
       event.preventDefault();
       filterInput.focus();
@@ -166,17 +192,19 @@
   <title>{$messages["app.title"]}</title>
 </svelte:head>
 
-<div class="app-shell" class:busy data-file-drop-target>
+<div class="app-shell" class:busy class:rail={sidebarCollapsed} data-file-drop-target>
   <Sidebar
     copy={$messages}
     profiles={snapshot.profiles}
     activeProfile={snapshot.activeProfile}
     locked={busy || working}
+    collapsed={sidebarCollapsed}
     {theme}
     {language}
     bind:themeMenuOpen
     bind:languageMenuOpen
     onprofile={selectProfile}
+    ontoggle={() => (sidebarCollapsed = !sidebarCollapsed)}
     ontheme={setTheme}
     onlanguage={setLocale}
   />
@@ -208,6 +236,8 @@
         onselect={(id, selected) => void run(() => SetSelected(id, selected))}
         onselectall={(selected) => void run(() => SetAllSelected(selected))}
         onremove={(id) => void run(() => Remove([id]))}
+        onremoveselected={removeSelected}
+        onclear={clearQueue}
       />
     </div>
     <ActivityDrawer
@@ -230,6 +260,12 @@
     display: grid;
     grid-template-columns: 236px minmax(0, 1fr);
     background: var(--window);
+    transition: grid-template-columns 0.16s ease;
+  }
+
+  /* Wide enough to clear the macOS traffic lights above the rail. */
+  .app-shell.rail {
+    grid-template-columns: 76px minmax(0, 1fr);
   }
 
   .main {

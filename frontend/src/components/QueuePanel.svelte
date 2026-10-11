@@ -30,6 +30,8 @@
     onselect,
     onselectall,
     onremove,
+    onremoveselected,
+    onclear,
   }: {
     copy: Messages;
     snapshot: ViewSnapshot;
@@ -45,9 +47,13 @@
     onselect: (id: string, selected: boolean) => void;
     onselectall: (selected: boolean) => void;
     onremove: (id: string) => void;
+    onremoveselected: () => void;
+    onclear: () => void;
   } = $props();
 
   let selectAll = $state<HTMLInputElement>();
+  let removeMenu = $state<HTMLDivElement>();
+  let removeOpen = $state(false);
 
   const locked = $derived(busy || working);
   const profileName = $derived(profile?.displayName ?? "");
@@ -76,6 +82,24 @@
     if (selectAll) selectAll.indeterminate = mixed;
   });
 
+  $effect(() => {
+    if (locked) removeOpen = false;
+  });
+
+  function onWindowClick(event: MouseEvent) {
+    if (removeOpen && event.target instanceof Node && !removeMenu?.contains(event.target))
+      removeOpen = false;
+  }
+
+  function onWindowKeydown(event: KeyboardEvent) {
+    if (event.key === "Escape") removeOpen = false;
+  }
+
+  function pick(action: () => void) {
+    removeOpen = false;
+    action();
+  }
+
   function statusLabel(item: QueueItem, key: ItemStatusKey): string {
     if (key === "Invalid" && String(item.validationErrors?.[0]?.code) === "duplicate-wire-name")
       return copy["status.Duplicate"];
@@ -97,6 +121,8 @@
     return "";
   }
 </script>
+
+<svelte:window onclick={onWindowClick} onkeydown={onWindowKeydown} />
 
 <section class="panel" aria-label={copy["queue.title"]}>
   {#if snapshot.items.length > 0}
@@ -150,6 +176,42 @@
       <button type="button" class="btn" disabled={locked} onclick={onaddfolder}>
         <Icon name="folder" size={14} /><span>{copy["action.addFolder"]}</span>
       </button>
+      <div class="menu-wrap" bind:this={removeMenu}>
+        <button
+          type="button"
+          class="btn"
+          disabled={locked}
+          aria-label={copy["queue.removeMenu"]}
+          aria-haspopup="menu"
+          aria-expanded={removeOpen}
+          onclick={() => (removeOpen = !removeOpen)}
+        >
+          <Icon name="trash" size={14} /><span>{copy["queue.remove"]}</span>
+          <Icon name="chevron" size={12} />
+        </button>
+        {#if removeOpen}
+          <div class="menu" role="menu" aria-label={copy["queue.removeMenu"]}>
+            <button
+              type="button"
+              role="menuitem"
+              disabled={snapshot.selectedCount === 0}
+              onclick={() => pick(onremoveselected)}
+            >
+              <span
+                >{interpolate(copy["queue.removeSelected"], {
+                  count: snapshot.selectedCount,
+                })}</span
+              >
+              <kbd>⌘⌫</kbd>
+            </button>
+            <div class="menu-sep" role="separator"></div>
+            <button type="button" role="menuitem" class="danger" onclick={() => pick(onclear)}>
+              <span>{copy["queue.clearAll"]}</span>
+              <span class="menu-count num">{snapshot.items.length}</span>
+            </button>
+          </div>
+        {/if}
+      </div>
     </div>
   {/if}
 
@@ -355,6 +417,66 @@
     place-items: center;
     color: var(--faint);
     padding: 2px;
+  }
+
+  .menu-wrap {
+    position: relative;
+  }
+
+  .menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 200px;
+    padding: 4px;
+    border-radius: 8px;
+    background: var(--surface);
+    box-shadow: var(--popover-shadow);
+    z-index: 20;
+  }
+
+  .menu button {
+    width: 100%;
+    height: 28px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 5px;
+    background: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  .menu button:hover:not(:disabled) {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+
+  .menu button:hover:not(:disabled) :is(kbd, .menu-count) {
+    color: inherit;
+    border-color: currentColor;
+  }
+
+  .menu button:disabled {
+    opacity: 0.4;
+  }
+
+  .menu .danger {
+    color: var(--err);
+  }
+
+  .menu-count {
+    color: var(--faint);
+    font-size: 11px;
+  }
+
+  .menu-sep {
+    height: 1px;
+    margin: 4px 6px;
+    background: var(--line);
   }
 
   .strip {

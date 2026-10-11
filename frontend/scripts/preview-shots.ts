@@ -10,7 +10,17 @@ const frontendRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const out = join(frontendRoot, "preview", "out");
 
 const states = ["empty", "ready", "invalid", "waiting", "serving", "completed", "failed", "many"];
-const shots: { state: string; theme: string; locale: string; activity: boolean }[] = [];
+type Shot = {
+  state: string;
+  theme: string;
+  locale: string;
+  activity: boolean;
+  rail?: boolean;
+  // Clicked (or hovered, with "hover:" prefix) after load to capture transient UI.
+  interact?: string;
+  suffix?: string;
+};
+const shots: Shot[] = [];
 for (const state of states) shots.push({ state, theme: "light", locale: "en", activity: false });
 for (const state of ["empty", "invalid", "serving", "completed"])
   shots.push({ state, theme: "dark", locale: "en", activity: false });
@@ -18,6 +28,27 @@ for (const state of ["invalid", "serving", "failed"])
   shots.push({ state, theme: "light", locale: "zh-CN", activity: false });
 shots.push({ state: "failed", theme: "light", locale: "en", activity: true });
 shots.push({ state: "serving", theme: "dark", locale: "en", activity: true });
+for (const state of ["empty", "ready", "serving"])
+  shots.push({ state, theme: "light", locale: "zh-CN", activity: false, rail: true });
+shots.push({ state: "ready", theme: "dark", locale: "en", activity: false, rail: true });
+shots.push({
+  state: "ready",
+  theme: "light",
+  locale: "zh-CN",
+  activity: false,
+  rail: true,
+  interact: "hover:[role='radio'][aria-label='Sphaira']",
+  suffix: "tip",
+});
+for (const theme of ["light", "dark"])
+  shots.push({
+    state: "ready",
+    theme,
+    locale: theme === "light" ? "zh-CN" : "en",
+    activity: false,
+    interact: "button[aria-haspopup='menu'][aria-label]:not(.tool)",
+    suffix: "remove-menu",
+  });
 
 const server = await createServer({
   configFile: join(frontendRoot, "vite.preview.config.ts"),
@@ -42,6 +73,7 @@ try {
       localStorage.setItem("nsp-carrier-theme", s.theme);
       localStorage.setItem("nsp-carrier-locale", s.locale);
       localStorage.setItem("nsp-carrier-activity-open", s.activity ? "1" : "0");
+      localStorage.setItem("nsp-carrier-sidebar-collapsed", s.rail ? "1" : "0");
     }, shot);
     const page = await context.newPage();
     const errors: string[] = [];
@@ -52,7 +84,16 @@ try {
     await page.goto(`${base}preview/index.html?state=${shot.state}`);
     await page.waitForSelector(".app-shell [role='radio']");
     await page.waitForTimeout(shot.state === "serving" ? 3200 : 300);
-    const name = [shot.state, shot.theme, shot.locale, shot.activity ? "activity" : ""]
+    if (shot.interact?.startsWith("hover:")) await page.hover(shot.interact.slice(6));
+    else if (shot.interact) await page.click(shot.interact);
+    const name = [
+      shot.state,
+      shot.theme,
+      shot.locale,
+      shot.activity ? "activity" : "",
+      shot.rail ? "rail" : "",
+      shot.suffix ?? "",
+    ]
       .filter(Boolean)
       .join("-");
     await page.screenshot({ path: join(out, `${name}.png`), animations: "disabled" });
