@@ -5,6 +5,7 @@ import App from "./App.svelte";
 import {
   ChooseFiles,
   ChooseFolder,
+  ClearQueue,
   GetSnapshot,
   Remove,
   SetAllSelected,
@@ -192,6 +193,28 @@ describe("NSP Carrier UI", () => {
       expect(SetProfile).toHaveBeenLastCalledWith("awoo");
     });
 
+    it("collapses to an icon rail that keeps every installer reachable", async () => {
+      await renderApp();
+      await fireEvent.click(screen.getByRole("button", { name: "Collapse sidebar" }));
+      const expand = screen.getByRole("button", { name: "Expand sidebar" });
+      expect(expand.getAttribute("aria-expanded")).toBe("false");
+      expect(localStorage.getItem("nsp-carrier-sidebar-collapsed")).toBe("1");
+      const dbi = screen.getByRole("radio", { name: "Backend DBI" });
+      expect(dbi.querySelector(".monogram")).toBeTruthy();
+      expect(dbi.querySelector(".formats")).toBeNull();
+      await fireEvent.click(dbi);
+      expect(SetProfile).toHaveBeenCalledWith("dbi");
+      await fireEvent.keyDown(window, { key: "\\", metaKey: true });
+      expect(screen.getByRole("button", { name: "Collapse sidebar" })).toBeTruthy();
+      expect(localStorage.getItem("nsp-carrier-sidebar-collapsed")).toBe("0");
+    });
+
+    it("restores the collapsed rail on launch", async () => {
+      localStorage.setItem("nsp-carrier-sidebar-collapsed", "1");
+      await renderApp();
+      expect(screen.getByRole("button", { name: "Expand sidebar" })).toBeTruthy();
+    });
+
     it("locks profile switching while a session is active", async () => {
       await renderApp();
       emit({ state: "Serving", sessionId: "session-1", canStop: true });
@@ -362,6 +385,41 @@ describe("NSP Carrier UI", () => {
       expect(Remove).toHaveBeenCalledWith(["source-1"]);
     });
 
+    it("removes the selected files or clears the whole queue in one step", async () => {
+      await renderApp(twoItems);
+      await fireEvent.click(screen.getByRole("button", { name: "Remove files" }));
+      await fireEvent.click(screen.getByRole("menuitem", { name: /Remove Selected \(1\)/ }));
+      expect(Remove).toHaveBeenCalledWith(["source-1"]);
+      expect(screen.queryByRole("menu")).toBeNull();
+      await fireEvent.click(screen.getByRole("button", { name: "Remove files" }));
+      await fireEvent.click(screen.getByRole("menuitem", { name: /Clear Queue/ }));
+      expect(ClearQueue).toHaveBeenCalledOnce();
+    });
+
+    it("removes the selected files on ⌘⌫ unless typing in the filter", async () => {
+      await renderApp(twoItems);
+      await fireEvent.keyDown(screen.getByRole("searchbox", { name: "Filter" }), {
+        key: "Backspace",
+        metaKey: true,
+      });
+      expect(Remove).not.toHaveBeenCalled();
+      await fireEvent.keyDown(window, { key: "Backspace", metaKey: true });
+      expect(Remove).toHaveBeenCalledWith(["source-1"]);
+    });
+
+    it("disables Remove Selected when nothing is selected", async () => {
+      await renderApp({
+        ...twoItems,
+        items: twoItems.items.map((item) => ({ ...(item as object), selected: false })),
+        selectedCount: 0,
+      });
+      await fireEvent.click(screen.getByRole("button", { name: "Remove files" }));
+      const item = screen.getByRole("menuitem", { name: /Remove Selected/ }) as HTMLButtonElement;
+      expect(item.disabled).toBe(true);
+      await fireEvent.keyDown(window, { key: "Backspace", metaKey: true });
+      expect(Remove).not.toHaveBeenCalled();
+    });
+
     it("filters rows by name or path and focuses the filter on ⌘F", async () => {
       await renderApp(twoItems);
       await fireEvent.keyDown(window, { key: "f", metaKey: true });
@@ -401,6 +459,11 @@ describe("NSP Carrier UI", () => {
         ).toBe(true),
       );
       expect(screen.queryByRole("button", { name: "Remove demo.nsp" })).toBeNull();
+      expect(
+        (screen.getByRole("button", { name: "Remove files" }) as HTMLButtonElement).disabled,
+      ).toBe(true);
+      await fireEvent.keyDown(window, { key: "Backspace", metaKey: true });
+      expect(Remove).not.toHaveBeenCalled();
       expect(
         (screen.getByRole("button", { name: /Add Files/ }) as HTMLButtonElement).disabled,
       ).toBe(true);

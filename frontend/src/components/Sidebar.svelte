@@ -2,6 +2,7 @@
   import type { Profile } from "../../bindings/github.com/timonwong/nsp-carrier/internal/host/models";
   import type { LocaleChoice, Messages } from "../i18n";
   import { interpolate, type Theme } from "../lib/session";
+  import Icon from "./Icon.svelte";
   import MenuButton from "./MenuButton.svelte";
 
   let {
@@ -9,11 +10,13 @@
     profiles,
     activeProfile,
     locked,
+    collapsed,
     theme,
     language,
     themeMenuOpen = $bindable(false),
     languageMenuOpen = $bindable(false),
     onprofile,
+    ontoggle,
     ontheme,
     onlanguage,
   }: {
@@ -21,11 +24,13 @@
     profiles: Profile[];
     activeProfile: string;
     locked: boolean;
+    collapsed: boolean;
     theme: Theme;
     language: LocaleChoice;
     themeMenuOpen?: boolean;
     languageMenuOpen?: boolean;
     onprofile: (id: string) => void;
+    ontoggle: () => void;
     ontheme: (theme: Theme) => void;
     onlanguage: (choice: LocaleChoice) => void;
   } = $props();
@@ -37,11 +42,34 @@
       });
     return "";
   }
+
+  // All-caps names (DBI) are already short; others read best as two letters.
+  function monogram(name: string): string {
+    const word = name.split(/\s+/)[0].replace(/[^\p{L}\p{N}]/gu, "");
+    if (word === word.toUpperCase()) return word.slice(0, 3);
+    return word.charAt(0).toUpperCase() + word.slice(1, 2).toLowerCase();
+  }
+
+  function formats(profile: Profile): string[] {
+    return (profile.supportedExtensions ?? []).map((extension) => extension.slice(1).toUpperCase());
+  }
 </script>
 
-<aside class="sidebar">
+<aside class="sidebar" class:collapsed>
   <div class="drag-zone"></div>
-  <h2 id="installer-heading">{copy["sidebar.installer"]}</h2>
+  <div class="head">
+    <h2 id="installer-heading" class:visually-hidden={collapsed}>{copy["sidebar.installer"]}</h2>
+    <button
+      type="button"
+      class="toggle"
+      aria-label={copy[collapsed ? "sidebar.expand" : "sidebar.collapse"]}
+      aria-expanded={!collapsed}
+      onclick={ontoggle}
+    >
+      <Icon name="sidebar" size={14} />
+      <kbd>⌘\</kbd>
+    </button>
+  </div>
   <div class="profiles" role="radiogroup" aria-labelledby="installer-heading">
     {#each profiles as profile, index (profile.id)}
       {@const active = profile.id === activeProfile}
@@ -55,29 +83,41 @@
         disabled={locked && !active}
         onclick={() => !active && onprofile(profile.id)}
       >
-        <span class="radio" aria-hidden="true"></span>
-        <span class="profile-body">
-          <span class="profile-name">
-            <span>{profile.displayName}</span>
-            {#if index < 9}<kbd>⌘{index + 1}</kbd>{/if}
+        {#if collapsed}
+          <span class="monogram">{monogram(profile.displayName)}</span>
+          <span class="tip" aria-hidden="true">
+            <span class="tip-name">
+              <strong>{profile.displayName}</strong>
+              {#if index < 9}<kbd>⌘{index + 1}</kbd>{/if}
+            </span>
+            <span class="tip-meta">{profile.protocolFamily}</span>
+            <span class="tip-meta">{formats(profile).join(" · ")}</span>
           </span>
-          <span class="profile-meta">
-            <span>{profile.protocolFamily}</span>
-            {#if versionNote(profile)}<span class="sep">·</span><span>{versionNote(profile)}</span
-              >{/if}
+        {:else}
+          <span class="radio" aria-hidden="true"></span>
+          <span class="profile-body">
+            <span class="profile-name">
+              <span>{profile.displayName}</span>
+              {#if index < 9}<kbd>⌘{index + 1}</kbd>{/if}
+            </span>
+            <span class="profile-meta">
+              <span>{profile.protocolFamily}</span>
+              {#if versionNote(profile)}<span class="sep">·</span><span>{versionNote(profile)}</span
+                >{/if}
+            </span>
+            <span class="formats">
+              {#each formats(profile) as extension (extension)}
+                <span>{extension}</span>
+              {/each}
+            </span>
           </span>
-          <span class="formats">
-            {#each profile.supportedExtensions ?? [] as extension (extension)}
-              <span>{extension.slice(1).toUpperCase()}</span>
-            {/each}
-          </span>
-        </span>
+        {/if}
       </button>
     {/each}
   </div>
 
   <footer>
-    <p>{copy["host.note"]}</p>
+    {#if !collapsed}<p>{copy["host.note"]}</p>{/if}
     <div class="tools">
       <MenuButton
         icon="theme"
@@ -99,7 +139,7 @@
         icon="globe"
         label={copy["language.change"]}
         menuLabel={copy["language.menu"]}
-        caption={copy["language.short"]}
+        caption={collapsed ? "" : copy["language.short"]}
         value={language}
         bind:open={languageMenuOpen}
         options={[
@@ -117,12 +157,17 @@
 </aside>
 
 <style>
+  .sidebar.collapsed {
+    padding-inline: 10px;
+  }
+
   .sidebar {
     display: flex;
     flex-direction: column;
     min-height: 0;
     padding: 0 12px 10px;
     background: var(--sunken);
+    z-index: 2;
     border-right: 1px solid var(--line);
   }
 
@@ -132,12 +177,48 @@
     --wails-draggable: drag;
   }
 
+  .head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 0 8px 8px;
+  }
+
+  .collapsed .head {
+    justify-content: center;
+    padding-left: 0;
+  }
+
   h2 {
     margin: 0;
-    padding: 0 8px 8px;
     font-size: 11px;
     font-weight: 600;
     color: var(--faint);
+  }
+
+  .toggle {
+    height: 22px;
+    padding: 0 5px;
+    border: 0;
+    border-radius: 5px;
+    background: none;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--faint);
+  }
+
+  .toggle kbd {
+    display: none;
+  }
+
+  .toggle:hover {
+    background: var(--hover);
+    color: var(--text);
+  }
+
+  .sidebar:not(.collapsed) .toggle:hover kbd {
+    display: inline;
   }
 
   .profiles {
@@ -238,6 +319,70 @@
     box-shadow: inset 0 0 0 1px var(--line-strong);
   }
 
+  .collapsed .profile {
+    position: relative;
+    justify-content: center;
+    align-items: center;
+    height: 46px;
+    padding: 0;
+  }
+
+  .monogram {
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    color: var(--muted);
+    background: var(--surface);
+    box-shadow: inset 0 0 0 1px var(--line-strong);
+  }
+
+  .active .monogram {
+    color: var(--accent-ink);
+    background: var(--accent);
+    box-shadow: none;
+  }
+
+  .tip {
+    position: absolute;
+    left: calc(100% + 10px);
+    top: 50%;
+    translate: 0 -50%;
+    display: none;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 150px;
+    padding: 7px 10px;
+    border-radius: 8px;
+    background: var(--surface);
+    box-shadow: var(--popover-shadow);
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 25;
+  }
+
+  .profile:hover .tip,
+  .profile:focus-visible .tip {
+    display: flex;
+  }
+
+  .tip-name {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .tip-meta {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--faint);
+  }
+
   footer {
     margin-top: auto;
     display: flex;
@@ -251,6 +396,11 @@
     font-size: 11px;
     line-height: 1.45;
     color: var(--faint);
+  }
+
+  .collapsed .tools {
+    flex-direction: column;
+    align-items: center;
   }
 
   .tools {
