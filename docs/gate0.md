@@ -41,7 +41,7 @@ below are recorded separately.
 
 ## Hardware acceptance matrix
 
-Run `make gate0-probe` before opening DBI's 60-second backend window. The
+Run `mise run gate0-probe` before opening DBI's 60-second backend window. The
 script completes the build first, then waits for and claims the USB device
 without requiring content files.
 

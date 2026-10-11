@@ -1,7 +1,138 @@
-# Keep versions in sync with go.mod, frontend/package.json (packageManager)
-# and WAILS_VERSION in the Makefile and CI.
+# Keep the pinned versions below in sync with go.mod and frontend/package.json:
+# Go's go directive, pnpm's packageManager, and Wails v3 in both Go and npm.
 [tools]
-go = "1.26"
-node = "24"
+go = "1.26.9"
+node = "24.21.0"
 pnpm = "11.25.0"
 "go:github.com/wailsapp/wails/v3/cmd/wails3" = "v3.0.0-beta.28"
+
+[tasks.deps]
+description = "Download Go module dependencies"
+run = "go mod download"
+
+[tasks.fmt]
+description = "Format Go source files"
+run = "gofmt -w *.go cmd internal"
+
+[tasks."fmt:check"]
+description = "Check Go source formatting"
+run = "files=$(gofmt -l *.go cmd internal); test -z \"$files\" || { echo 'Go files need formatting:'; printf '%s\\n' \"$files\"; exit 1; }"
+
+[tasks.test]
+description = "Run Go unit tests without cache"
+run = "go test -count=1 ./..."
+
+[tasks."test:race"]
+description = "Run Go tests with the race detector"
+run = "go test -race -count=1 ./..."
+
+[tasks.fuzz]
+description = "Run the six short protocol codec fuzz smoke tests"
+run = """
+FUZZ_TIME=\"${FUZZ_TIME:-2s}\"
+go test ./internal/dbi -run='^$' -fuzz=FuzzDecodeHeader -fuzztime=\"$FUZZ_TIME\"
+go test ./internal/dbi -run='^$' -fuzz=FuzzParseRangeRequest -fuzztime=\"$FUZZ_TIME\"
+go test ./internal/awoo -run='^$' -fuzz=FuzzDecodeCommandHeader -fuzztime=\"$FUZZ_TIME\"
+go test ./internal/awoo -run='^$' -fuzz=FuzzParseRangeRequest -fuzztime=\"$FUZZ_TIME\"
+go test ./internal/goldleaf -run='^$' -fuzz=FuzzDecodeRequest -fuzztime=\"$FUZZ_TIME\"
+go test ./internal/sphaira -run='^$' -fuzz=FuzzDecodePacket -fuzztime=\"$FUZZ_TIME\"
+"""
+
+[tasks.vet]
+description = "Run Go static analysis"
+run = "go vet ./..."
+
+[tasks."cli:build"]
+description = "Build the USB diagnostics CLI"
+run = "mkdir -p bin && go build -trimpath -o bin/usb-spike ./cmd/usb-spike"
+
+[tasks.usb-spike]
+description = "Build and run the USB diagnostics CLI with passthrough arguments"
+depends = ["cli:build"]
+raw_args = true
+run = "./bin/usb-spike"
+
+[tasks."gate0-probe"]
+description = "Build, then wait for and claim DBI USB endpoints"
+run = "./scripts/gate0-probe.sh"
+
+[tasks.clean]
+description = "Remove locally built binaries"
+run = "rm -f bin/usb-spike; rmdir bin 2>/dev/null || true"
+
+[tasks."wails:doctor"]
+description = "Check local Wails build dependencies"
+run = "wails3 doctor"
+
+[tasks.bindings]
+description = "Generate canonical Wails bindings"
+env = { WAILS_BIN = "wails3" }
+run = "pnpm --dir frontend run bindings:generate"
+
+[tasks."bindings:check"]
+description = "Regenerate bindings and fail when tracked output is stale"
+env = { WAILS_BIN = "wails3" }
+run = "pnpm --dir frontend run bindings:check"
+
+[tasks."ui:install"]
+description = "Install locked frontend dependencies"
+run = "pnpm --dir frontend install --frozen-lockfile"
+
+[tasks."ui:format"]
+description = "Format frontend sources and generated files"
+run = "pnpm --dir frontend run format"
+
+[tasks."ui:format:check"]
+description = "Check canonical frontend formatting"
+run = "pnpm --dir frontend run format:check"
+
+[tasks."ui:test"]
+description = "Run frontend behavior tests"
+run = "pnpm --dir frontend run test"
+
+[tasks."ui:check"]
+description = "Run frontend tests, formatting, Svelte, and TypeScript diagnostics"
+depends = ["ui:test", "ui:format:check"]
+run = "pnpm --dir frontend run check"
+
+[tasks."ui:build"]
+description = "Build static frontend assets"
+run = "pnpm --dir frontend run build"
+
+[tasks."dev:frontend"]
+description = "Run the Vite frontend development server"
+dir = "frontend"
+run = "pnpm run dev"
+
+[tasks.icons]
+description = "Generate platform application icons when the source changed"
+dir = "build"
+sources = ["appicon.png"]
+outputs = ["darwin/icons.icns", "windows/icon.ico"]
+run = "wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico"
+
+[tasks."app:build"]
+description = "Build the development Wails application for the host OS"
+depends = ["ui:build"]
+run = "build/scripts/app.sh build"
+run_windows = "bash build/scripts/app.sh build"
+
+[tasks."app:package"]
+description = "Build and package the production Wails application for the host OS"
+depends = ["ui:build"]
+run = "build/scripts/app.sh package"
+run_windows = "bash build/scripts/app.sh package"
+
+[tasks."app:run"]
+description = "Run the development Wails application bundle"
+run = "build/scripts/app.sh run"
+run_windows = "bash build/scripts/app.sh run"
+
+[tasks."app:dev"]
+description = "Run Wails development mode with the Vite frontend"
+depends = ["bindings"]
+run = "wails3 dev -config ./build/config.yml -port ${WAILS_VITE_PORT:-9245}"
+
+[tasks.check]
+description = "Run the complete Go and frontend validation set"
+depends = ["fmt:check", "test", "test:race", "fuzz", "vet", "cli:build", "ui:check", "ui:build"]
