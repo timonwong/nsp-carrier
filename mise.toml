@@ -6,6 +6,10 @@ node = "24.21.0"
 pnpm = "11.25.0"
 "go:github.com/wailsapp/wails/v3/cmd/wails3" = "v3.0.0-beta.28"
 
+[settings]
+# Tasks are written in POSIX shell; Windows defaults to cmd.exe and needs Git Bash on PATH.
+windows_default_inline_shell_args = "bash -o errexit -c"
+
 [tasks.deps]
 description = "Download Go module dependencies"
 run = "go mod download"
@@ -115,18 +119,15 @@ run = "wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -
 description = "Build the development Wails application for the host OS"
 depends = ["ui:build"]
 run = "build/scripts/app.sh build"
-run_windows = "bash build/scripts/app.sh build"
 
 [tasks."app:package"]
 description = "Build and package the production Wails application for the host OS"
 depends = ["ui:build"]
 run = "build/scripts/app.sh package"
-run_windows = "bash build/scripts/app.sh package"
 
 [tasks."app:run"]
 description = "Run the development Wails application bundle"
 run = "build/scripts/app.sh run"
-run_windows = "bash build/scripts/app.sh run"
 
 [tasks."app:dev"]
 description = "Run Wails development mode with the Vite frontend"
