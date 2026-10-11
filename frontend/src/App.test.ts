@@ -201,9 +201,7 @@ describe("NSP Carrier UI", () => {
       expect(localStorage.getItem("nsp-carrier-sidebar-collapsed")).toBe("1");
       const dbi = screen.getByRole("radio", { name: "Backend DBI" });
       expect(dbi.querySelector(".monogram")).toBeTruthy();
-      expect(
-        within(screen.getByRole("radio", { name: "Backend Goldleaf" })).queryByText("FOO"),
-      ).toBeNull();
+      expect(dbi.querySelector(".formats")).toBeNull();
       await fireEvent.click(dbi);
       expect(SetProfile).toHaveBeenCalledWith("dbi");
       await fireEvent.keyDown(window, { key: "\\", metaKey: true });
