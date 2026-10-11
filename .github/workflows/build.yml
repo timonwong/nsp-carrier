@@ -57,12 +57,17 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: go.sum
 
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
+
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 24
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
 
       - name: Install macOS native dependencies
         if: runner.os == 'macOS'
@@ -85,7 +90,7 @@ jobs:
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
 
       - name: Install frontend dependencies
-        run: npm --prefix frontend ci
+        run: pnpm --dir frontend install --frozen-lockfile
 
       - name: Check formatting
         shell: bash
@@ -95,12 +100,12 @@ jobs:
             printf 'Go files need formatting:\n%s\n' "$unformatted"
             exit 1
           fi
-          npm --prefix frontend run format:check
+          pnpm --dir frontend run format:check
 
       - name: Check Wails bindings
         env:
           WAILS_BIN: wails3
-        run: npm --prefix frontend run bindings:check
+        run: pnpm --dir frontend run bindings:check
 
       - name: Test Go code
         run: go test -count=1 ./...
@@ -109,10 +114,10 @@ jobs:
         run: go vet ./...
 
       - name: Check frontend
-        run: npm --prefix frontend run check
+        run: pnpm --dir frontend run check
 
       - name: Build frontend
-        run: npm --prefix frontend run build
+        run: pnpm --dir frontend run build
 
       - name: Build Wails application
         run: wails3 task package ARCH=${{ matrix.arch }}

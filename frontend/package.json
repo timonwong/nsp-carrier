@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "check": "npm run check:app && npm run check:node",
+    "check": "pnpm run check:app && pnpm run check:node",
     "check:app": "svelte-check --tsconfig ./tsconfig.json",
     "check:node": "tsc --noEmit -p ./tsconfig.node.json",
     "format": "oxfmt .",
@@ -41,6 +41,7 @@
     "vite": "^8.0.13",
     "vitest": "^5.0.3"
   },
+  "packageManager": "pnpm@11.25.0",
   "engines": {
     "node": ">=22.18.0"
   }

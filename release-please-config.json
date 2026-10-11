@@ -10,12 +10,6 @@
       "changelog-type": "github",
       "extra-files": [
         { "type": "json", "path": "frontend/package.json", "jsonpath": "$.version" },
-        { "type": "json", "path": "frontend/package-lock.json", "jsonpath": "$.version" },
-        {
-          "type": "json",
-          "path": "frontend/package-lock.json",
-          "jsonpath": "$.packages[''].version"
-        },
         { "type": "json", "path": "build/windows/info.json", "jsonpath": "$.fixed.file_version" },
         {
           "type": "json",

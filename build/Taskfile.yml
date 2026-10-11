@@ -4,7 +4,7 @@ tasks:
   build:frontend:
     dir: frontend
     cmds:
-      - npm run build
+      - pnpm run build
 
   generate:icons:
     dir: build
@@ -19,4 +19,4 @@ tasks:
   dev:frontend:
     dir: frontend
     cmds:
-      - npm run dev
+      - pnpm run dev

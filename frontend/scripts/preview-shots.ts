@@ -1,5 +1,5 @@
 // Renders every UI state from preview/fixtures.ts to PNGs in preview/out/.
-// Usage: npm run preview:shots (needs `npx playwright install chromium` once).
+// Usage: pnpm run preview:shots (needs `pnpm exec playwright install chromium` once).
 import { mkdir, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

@@ -1,7 +1,7 @@
 SHELL := /bin/sh
 
 GO ?= go
-NPM ?= npm
+PNPM ?= pnpm
 BIN_DIR ?= bin
 FUZZ_TIME ?= 2s
 USB_SPIKE := $(BIN_DIR)/usb-spike
@@ -64,28 +64,28 @@ wails-doctor: ## Check local Wails build dependencies.
 	$(WAILS) doctor
 
 wails-bindings: ## Generate canonical Wails bindings.
-	WAILS_BIN="$(WAILS)" $(NPM) --prefix frontend run bindings:generate
+	WAILS_BIN="$(WAILS)" $(PNPM) --dir frontend run bindings:generate
 
 wails-bindings-check: ## Regenerate canonical bindings and fail when tracked output is stale.
-	WAILS_BIN="$(WAILS)" $(NPM) --prefix frontend run bindings:check
+	WAILS_BIN="$(WAILS)" $(PNPM) --dir frontend run bindings:check
 
 ui-install: ## Install locked frontend dependencies.
-	$(NPM) --prefix frontend ci
+	$(PNPM) --dir frontend install --frozen-lockfile
 
 ui-format: ## Format frontend sources and tracked generated files.
-	$(NPM) --prefix frontend run format
+	$(PNPM) --dir frontend run format
 
 ui-format-check: ## Fail if frontend files need canonical formatting.
-	$(NPM) --prefix frontend run format:check
+	$(PNPM) --dir frontend run format:check
 
 ui-test: ## Run frontend behavior tests.
-	$(NPM) --prefix frontend run test
+	$(PNPM) --dir frontend run test
 
 ui-check: ui-test ui-format-check ## Run frontend tests, formatting, Svelte, and TypeScript diagnostics.
-	$(NPM) --prefix frontend run check
+	$(PNPM) --dir frontend run check
 
 ui-build: ## Build static frontend assets.
-	$(NPM) --prefix frontend run build
+	$(PNPM) --dir frontend run build
 
 app-build: wails-bindings ## Build the macOS arm64 Wails application bundle.
 	PATH="$(dir $(WAILS)):$$PATH" $(WAILS) task package ARCH=arm64
