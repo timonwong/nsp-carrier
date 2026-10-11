@@ -4,6 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f7f7f8" />
+    <script>
+      // Set the saved theme before the first paint, before Svelte mounts.
+      (() => {
+        let theme = "auto";
+        try {
+          const saved = localStorage.getItem("nsp-carrier-theme");
+          if (saved === "light" || saved === "dark") theme = saved;
+        } catch {
+          // localStorage can be unavailable in restricted browser contexts.
+        }
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
     <title>NSP Carrier</title>
   </head>
   <body>
