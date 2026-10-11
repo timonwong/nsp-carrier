@@ -93,18 +93,33 @@ to `main`, and manual runs:
 - macOS arm64 on an Apple Silicon runner.
 - Linux amd64 on an Ubuntu runner with GTK 3 and WebKit2GTK 4.1.
 
-Each job uploads a seven-day artifact and a SHA-256 checksum. The Windows
-zip includes `libusb-1.0.dll`; the macOS app embeds `libusb` and is ad-hoc
-signed after bundling. Linux is distributed as a `.tar.gz` with the native
-binary and requires GTK 3, WebKit2GTK 4.1, and libusb on the target machine.
-These CI artifacts are not publicly code-signed or notarised. Windows users
+Windows and macOS jobs upload a seven-day artifact and a SHA-256 checksum.
+The Windows zip includes `libusb-1.0.dll`; the macOS app embeds `libusb` and is
+ad-hoc signed after bundling. The Linux job is a compile check only and
+publishes no artifact. These CI artifacts are not publicly code-signed or notarised. Windows users
 must configure a compatible USB driver such as WinUSB separately.
 Real-device acceptance is recorded on macOS arm64; Linux has no real-device
 verification yet.
 
-Pushing a tag whose name starts with `v` reuses the same build workflow and
-publishes all three platform artifacts and their checksums to a GitHub Release with
-generated notes.
+## Releases
+
+Releases are managed by [release-please](https://github.com/googleapis/release-please).
+Every push to `main` updates a release PR that bumps the version and
+`CHANGELOG.md` from Conventional Commit messages. Merging that PR tags
+`vX.Y.Z`, creates the GitHub Release, then builds and attaches the Windows and
+macOS zips with their checksums.
+
+- Use Conventional Commit PR titles; with squash merges the PR title becomes
+  the commit that release-please reads.
+- While the version is `0.x`, `feat` bumps the minor version and breaking
+  changes do not jump to `1.0.0`.
+- Version strings live in `frontend/package.json`, `frontend/package-lock.json`,
+  `build/config.yml`, `build/darwin/Info*.plist` and `build/windows/`; lines
+  that cannot be addressed by JSON path carry an `x-release-please-version`
+  marker. Add new version-bearing files to `release-please-config.json`.
+- Set a `RELEASE_PLEASE_TOKEN` secret (fine-grained PAT with contents and pull
+  requests write) so the release PR runs CI; without it the default token is
+  used and the PR gets no checks.
 
 ## Further reading
 
