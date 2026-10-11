@@ -109,8 +109,9 @@ Every push to `main` updates a release PR that bumps the version and
 `vX.Y.Z`, creates the GitHub Release, then builds and attaches the Windows and
 macOS zips with their checksums.
 
-- Use Conventional Commit PR titles; with squash merges the PR title becomes
-  the commit that release-please reads.
+- The version bump comes from Conventional Commits; the changelog and release
+  notes come from GitHub's generated notes, one line per merged PR, so merge
+  commits do not duplicate entries. Use Conventional Commit PR titles.
 - While the version is `0.x`, `feat` bumps the minor version and breaking
   changes do not jump to `1.0.0`.
 - Version strings live in `frontend/package.json`, `frontend/package-lock.json`,
