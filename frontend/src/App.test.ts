@@ -428,6 +428,10 @@ describe("NSP Carrier UI", () => {
         validationErrors: [validationError],
       });
       expect(screen.getByText("1 selected file can't be served by Backend Goldleaf")).toBeTruthy();
+      const card = screen.getByRole("region", { name: "Session" });
+      expect(within(card).getByText("Can't start yet")).toBeTruthy();
+      expect(within(card).getByText("Resolve the issues below to start")).toBeTruthy();
+      expect(within(card).queryByText("Ready")).toBeNull();
       expect(screen.getByText("Backend Goldleaf can't serve .NSZ files")).toBeTruthy();
       expect(screen.getByText("Unsupported")).toBeTruthy();
       expect(

@@ -71,6 +71,19 @@ The bundle is written to `bin/NSP Carrier.app`. The local bundle is
 unsigned; public signing, notarisation, and installers remain deferred. The
 bundle identifier is `im.theo.nsp-carrier`.
 
+### UI screenshots
+
+The preview build runs the real frontend against fixture snapshots in
+`frontend/preview/fixtures.ts`, so every UI state can be rendered without the
+Go backend or a Switch:
+
+```sh
+npx --prefix frontend playwright install chromium   # once
+npm --prefix frontend run preview:shots
+```
+
+PNGs for each state, theme and locale are written to `frontend/preview/out/`.
+
 ## Continuous integration
 
 GitHub Actions builds and checks three desktop targets for pull requests, pushes

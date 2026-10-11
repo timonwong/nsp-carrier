@@ -48,8 +48,22 @@
       : null,
   );
 
+  // Idle with a selection that the backend refuses to start: say so instead
+  // of "Ready" next to a disabled Start button.
+  const blocked = $derived(
+    state === "Idle" &&
+      snapshot.selectedCount > 0 &&
+      ((snapshot.validationErrors?.length ?? 0) > 0 ||
+        snapshot.hasConflict ||
+        profile?.adapterAvailable === false),
+  );
+
   const titleKey = $derived(
-    empty ? "session.title.Empty" : (`session.title.${state}` as keyof Messages),
+    empty
+      ? "session.title.Empty"
+      : blocked
+        ? "session.title.Blocked"
+        : (`session.title.${state}` as keyof Messages),
   );
 
   const detail = $derived.by(() => {
@@ -57,6 +71,7 @@
       case "Idle":
         if (empty) return copy["session.detail.Empty"];
         if (snapshot.selectedCount === 0) return copy["session.detail.NoSelection"];
+        if (blocked) return copy["session.detail.Blocked"];
         return interpolate(copy["session.detail.Idle"], {
           count: snapshot.selectedCount,
           size: formatBytes(snapshot.selectedBytes),
@@ -89,7 +104,7 @@
   });
 </script>
 
-<section class="card tone-{tone}" aria-labelledby="session-title">
+<section class="card tone-{blocked ? 'warn' : tone}" aria-labelledby="session-title">
   <h2 class="visually-hidden" id="session-title">{copy["session.label"]}</h2>
   <div class="badge" aria-hidden="true">
     <Icon
