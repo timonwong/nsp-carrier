@@ -6,12 +6,13 @@ source; end users do not need it.
 ## Build prerequisites
 
 On macOS, install the CGO and frontend dependencies. The frontend uses
-[pnpm](https://pnpm.io); `corepack enable` picks up the version pinned in
-`frontend/package.json`.
+[pnpm](https://pnpm.io). Activate the version pinned in `frontend/package.json`
+for commands run from the repository root, where Corepack cannot see that file.
 
 ```sh
 brew install libusb pkgconf
 corepack enable
+corepack install --global pnpm@11.25.0
 make deps
 make ui-install
 ```
