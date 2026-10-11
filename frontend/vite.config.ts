@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [svelte()],
   resolve: { conditions: ["browser"] },
   clearScreen: false,
-  server: { strictPort: true },
+  server: { port: Number(process.env.WAILS_VITE_PORT) || 9245, strictPort: true },
   test: { environment: "jsdom" },
   build: {
     emptyOutDir: false,

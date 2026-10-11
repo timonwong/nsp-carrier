@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const frontendRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const projectRoot = dirname(frontendRoot);
-const generatedRoot = join(frontendRoot, "wailsjs");
+const generatedRoot = join(frontendRoot, "bindings");
 const formatter = join(frontendRoot, "node_modules", "oxfmt", "bin", "oxfmt");
 
 function run(command: string, args: string[], cwd: string): void {
@@ -21,7 +21,7 @@ function run(command: string, args: string[], cwd: string): void {
 function generatedStatus(): string {
   const result = spawnSync(
     "git",
-    ["status", "--porcelain=v1", "--untracked-files=all", "--", "frontend/wailsjs"],
+    ["status", "--porcelain=v1", "--untracked-files=all", "--", "frontend/bindings"],
     { cwd: projectRoot, encoding: "utf8" },
   );
   if (result.error) {
@@ -48,12 +48,12 @@ async function normalizeModes(directory: string): Promise<void> {
 }
 
 async function canonicalizeBindings(): Promise<void> {
-  run(process.execPath, [formatter, "wailsjs"], frontendRoot);
+  run(process.execPath, [formatter, "bindings"], frontendRoot);
   await normalizeModes(generatedRoot);
 }
 
 async function generateBindings(): Promise<void> {
-  run(process.env.WAILS_BIN || "wails", ["generate", "module"], projectRoot);
+  run(process.env.WAILS_BIN || "wails3", ["generate", "bindings", "-ts"], projectRoot);
   await canonicalizeBindings();
 }
 
@@ -72,7 +72,7 @@ async function main(): Promise<void> {
     const before = generatedStatus();
     if (before) {
       throw new Error(
-        "binding freshness check refused: frontend/wailsjs already has worktree changes",
+        "binding freshness check refused: frontend/bindings already has worktree changes",
       );
     }
   }
@@ -81,7 +81,7 @@ async function main(): Promise<void> {
 
   if (command === "check" && generatedStatus()) {
     throw new Error(
-      "Wails bindings are stale; canonical regenerated changes were left in frontend/wailsjs",
+      "Wails bindings are stale; canonical regenerated changes were left in frontend/bindings",
     );
   }
 }

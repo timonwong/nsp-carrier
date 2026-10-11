@@ -9,15 +9,16 @@
 # Go build and coverage artifacts
 /bin/
 /dist/
+/.task/
 *.test
 coverage.out
 
-# Wails frontend artifacts (future)
-/build/bin/
+# Wails frontend artifacts
 /frontend/dist/*
 !/frontend/dist/.gitkeep
 /frontend/node_modules/
 /frontend/package.json.md5
+/wails_windows_*.syso
 
 # Local content and diagnostics
 /testdata/local/

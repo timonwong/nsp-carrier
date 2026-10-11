@@ -59,6 +59,7 @@
 
 - **macOS：** 解压 `nsp-carrier-macos-arm64.zip`，将 `NSP Carrier.app` 移入 Applications。
 - **Windows：** 解压 `nsp-carrier-windows-amd64.zip`，运行 `nsp-carrier.exe`。
+- **Linux：** 解压 `nsp-carrier-linux-amd64.tar.gz`，运行 `nsp-carrier`。请先安装 GTK 3、WebKit2GTK 4.1 和 libusb。
 
 发布产物未做代码签名与公证。macOS 首次打开时，用右键 → 打开（Open）来绕过 Gatekeeper。
 
@@ -84,6 +85,10 @@ Switch 以裸 USB 设备的形式暴露，Windows 需要兼容的 USB 驱动，`
 6. 目标驱动选择 **libusbK**（若不可用也可选 *WinUSB*）。
 7. 点击 *Replace Driver*（或 *Install Driver*），等待安装完成。
 8. 启动 `nsp-carrier`，确认应用能看到设备后再开始服务。
+
+#### Linux
+
+请通过发行版的包管理器安装 GTK 3、WebKit2GTK 4.1 与 libusb。Linux 构建尚未通过真实设备验收。
 
 ## 许可
 

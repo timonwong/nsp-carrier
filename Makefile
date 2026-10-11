@@ -5,8 +5,8 @@ NPM ?= npm
 BIN_DIR ?= bin
 FUZZ_TIME ?= 2s
 USB_SPIKE := $(BIN_DIR)/usb-spike
-WAILS ?= $(shell command -v wails 2>/dev/null || { d="$$(go env GOBIN)"; [ -n "$$d" ] || d="$$(go env GOPATH)/bin"; printf '%s/wails' "$$d"; })
-WAILS_VERSION ?= v2.14.0
+WAILS ?= $(shell command -v wails3 2>/dev/null || { d="$$(go env GOBIN)"; [ -n "$$d" ] || d="$$(go env GOPATH)/bin"; printf '%s/wails3' "$$d"; })
+WAILS_VERSION ?= v3.0.0-beta.28
 
 .DEFAULT_GOAL := help
 
@@ -57,8 +57,8 @@ gate0-probe: ## Build first, then wait for and claim DBI USB endpoints.
 usb-spike: build ## Run the USB spike; pass arguments with ARGS='...'.
 	./$(USB_SPIKE) $(ARGS)
 
-wails-install: ## Install the pinned Wails v2 CLI.
-	$(GO) install github.com/wailsapp/wails/v2/cmd/wails@$(WAILS_VERSION)
+wails-install: ## Install the pinned Wails v3 CLI.
+	$(GO) install github.com/wailsapp/wails/v3/cmd/wails3@$(WAILS_VERSION)
 
 wails-doctor: ## Check local Wails build dependencies.
 	$(WAILS) doctor
@@ -88,10 +88,10 @@ ui-build: ## Build static frontend assets.
 	$(NPM) --prefix frontend run build
 
 app-build: wails-bindings ## Build the macOS arm64 Wails application bundle.
-	$(WAILS) build -clean -skipbindings -platform darwin/arm64
+	PATH="$(dir $(WAILS)):$$PATH" $(WAILS) task package ARCH=arm64
 
 app-dev: wails-bindings ## Run the Wails application with frontend hot reload.
-	$(WAILS) dev -skipbindings
+	PATH="$(dir $(WAILS)):$$PATH" $(WAILS) task dev
 
 clean: ## Remove locally built binaries.
 	@rm -f $(USB_SPIKE)

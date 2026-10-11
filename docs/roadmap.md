@@ -10,7 +10,7 @@
 
 ## USB MVP after Gate 0
 
-- Wails v2.14 with Svelte 5 and TypeScript (implemented)
+- Wails v3.0.0-beta.28 with Svelte 5 and TypeScript (implemented)
 - English macOS utility UI (implemented)
 - queue, selection, search, progress, logs, typed errors, Start/Stop
   (implemented; real-Switch full transfer passed 2026-08-16)
