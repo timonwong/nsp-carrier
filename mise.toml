@@ -6,9 +6,9 @@ node = "24.21.0"
 pnpm = "11.25.0"
 "go:github.com/wailsapp/wails/v3/cmd/wails3" = "v3.0.0-beta.28"
 
-[settings]
-# Tasks are written in POSIX shell; Windows defaults to cmd.exe and needs Git Bash on PATH.
-windows_default_inline_shell_args = "bash -o errexit -c"
+# Tasks are POSIX shell. On Windows, put Git Bash on PATH and run once:
+#   mise settings set windows_default_inline_shell_args "bash -o errexit -c"
+# (mise ignores this setting in project config files.)
 
 [tasks.deps]
 description = "Download Go module dependencies"

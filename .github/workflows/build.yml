@@ -17,6 +17,8 @@ concurrency:
 
 env:
   NODE_OPTIONS: --max-old-space-size=4096
+  # mise tasks are POSIX shell; mise ignores this setting in the project mise.toml.
+  MISE_WINDOWS_DEFAULT_INLINE_SHELL_ARGS: bash -o errexit -c
 
 jobs:
   build:
