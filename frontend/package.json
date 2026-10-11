@@ -16,7 +16,8 @@
     "bindings:canonicalize": "node scripts/wails-bindings.ts canonicalize",
     "bindings:generate": "node scripts/wails-bindings.ts generate",
     "bindings:check": "node scripts/wails-bindings.ts check",
-    "test": "vitest run"
+    "test": "vitest run",
+    "preview:shots": "node scripts/preview-shots.ts"
   },
   "dependencies": {
     "@nanostores/i18n": "^1.3.3",
