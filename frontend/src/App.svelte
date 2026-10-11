@@ -11,9 +11,10 @@
     SetSelected,
     Start,
     Stop,
-  } from "../wailsjs/go/main/DesktopApp";
-  import { app } from "../wailsjs/go/models";
-  import { EventsOff, EventsOn } from "../wailsjs/runtime/runtime";
+  } from "../bindings/github.com/timonwong/nsp-carrier/desktopapp";
+  import { ViewSnapshot } from "../bindings/github.com/timonwong/nsp-carrier/internal/app/models";
+  import "../bindings/github.com/wailsapp/wails/v3/internal/eventcreate";
+  import { Events } from "@wailsio/runtime";
   import { localePreference, messages, setLocale, type LocaleChoice } from "./i18n";
 
   type Theme = "auto" | "light" | "dark";
@@ -65,8 +66,8 @@
       theme = savedTheme;
     }
     applyTheme(theme);
-    EventsOn(snapshotEvent, (next: app.ViewSnapshot) => {
-      snapshot = toViewSnapshot(next);
+    const unsubscribe = Events.On(snapshotEvent, (event) => {
+      snapshot = toViewSnapshot(event.data);
     });
     const closeMenus = (event: MouseEvent) => {
       if (!(event.target instanceof Element) || !event.target.closest(".theme-wrap"))
@@ -87,7 +88,7 @@
     return () => {
       document.removeEventListener("click", closeMenus);
       document.removeEventListener("keydown", closeThemeMenuOnEscape);
-      EventsOff(snapshotEvent);
+      unsubscribe();
     };
   });
 
@@ -122,8 +123,8 @@
     actionError = error instanceof Error ? error.message : String(error);
   }
 
-  function toViewSnapshot(source: unknown): app.ViewSnapshot {
-    const next = new app.ViewSnapshot(source);
+  function toViewSnapshot(source: unknown): ViewSnapshot {
+    const next = ViewSnapshot.createFrom(source);
     next.items ??= [];
     next.logs ??= [];
     next.profiles ??= [];
@@ -168,7 +169,7 @@
   }
 
   function formatSessionCopy(
-    view: app.ViewSnapshot,
+    view: ViewSnapshot,
     profileName: string | undefined,
     copy: typeof $messages,
   ): string {
@@ -204,7 +205,7 @@
   <title>NSP Carrier</title>
 </svelte:head>
 
-<main class="app-shell">
+<main class="app-shell" data-file-drop-target>
   <header class="titlebar">
     <div class="brand">
       <div class="brand-mark" aria-hidden="true"><span></span><span></span></div>

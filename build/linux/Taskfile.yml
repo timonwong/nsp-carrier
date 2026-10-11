@@ -1,0 +1,28 @@
+version: '3'
+
+includes:
+  common: ../Taskfile.yml
+
+tasks:
+  build:
+    deps:
+      - task: common:build:frontend
+    cmds:
+      - mkdir -p bin
+      - go build {{.BUILD_FLAGS}} -o bin/nsp-carrier .
+    vars:
+      BUILD_FLAGS: '{{if eq .PRODUCTION "true"}}-tags gtk3,production -trimpath -buildvcs=false -ldflags="-w -s"{{else}}-tags gtk3 -buildvcs=false -gcflags=all="-l"{{end}}'
+    env:
+      GOOS: linux
+      GOARCH: '{{.ARCH | default ARCH}}'
+      CGO_ENABLED: 1
+
+  package:
+    cmds:
+      - task: build
+        vars:
+          PRODUCTION: 'true'
+
+  run:
+    cmds:
+      - bin/nsp-carrier

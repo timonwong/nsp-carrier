@@ -53,7 +53,7 @@ gate; each profile's acceptance document remains independently authoritative.
 
 ## Desktop app
 
-Install the pinned Wails v2 CLI and verify the local macOS toolchain:
+Install the pinned Wails v3 CLI and verify the local macOS toolchain:
 
 ```sh
 make wails-install
@@ -67,27 +67,30 @@ make app-dev
 make app-build
 ```
 
-The bundle is written to `build/bin/NSP Carrier.app`. The local bundle is
+The bundle is written to `bin/NSP Carrier.app`. The local bundle is
 unsigned; public signing, notarisation, and installers remain deferred. The
 bundle identifier is `im.theo.nsp-carrier`.
 
 ## Continuous integration
 
-GitHub Actions builds and checks two desktop targets for pull requests, pushes
+GitHub Actions builds and checks three desktop targets for pull requests, pushes
 to `main`, and manual runs:
 
 - Windows amd64 on a native x64 runner;
 - macOS arm64 on an Apple Silicon runner.
+- Linux amd64 on an Ubuntu runner with GTK 3 and WebKit2GTK 4.1.
 
-Each job uploads a seven-day zip artifact and a SHA-256 checksum. The Windows
+Each job uploads a seven-day artifact and a SHA-256 checksum. The Windows
 zip includes `libusb-1.0.dll`; the macOS app embeds `libusb` and is ad-hoc
-signed after bundling. These CI artifacts are not publicly code-signed or
-notarised. Windows users must configure a compatible USB driver such as
-WinUSB separately. Real-device acceptance is recorded on macOS arm64; Linux
-is not built or supported.
+signed after bundling. Linux is distributed as a `.tar.gz` with the native
+binary and requires GTK 3, WebKit2GTK 4.1, and libusb on the target machine.
+These CI artifacts are not publicly code-signed or notarised. Windows users
+must configure a compatible USB driver such as WinUSB separately.
+Real-device acceptance is recorded on macOS arm64; Linux has no real-device
+verification yet.
 
 Pushing a tag whose name starts with `v` reuses the same build workflow and
-publishes both platform zips and their checksums to a GitHub Release with
+publishes all three platform artifacts and their checksums to a GitHub Release with
 generated notes.
 
 ## Further reading

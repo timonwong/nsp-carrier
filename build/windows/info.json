@@ -1,0 +1,15 @@
+{
+  "fixed": {
+    "file_version": "0.3.0"
+  },
+  "info": {
+    "0000": {
+      "ProductVersion": "0.3.0",
+      "CompanyName": "Theo",
+      "FileDescription": "An Omni host for NS installers",
+      "LegalCopyright": "Copyright 2026 Theo",
+      "ProductName": "NSP Carrier",
+      "Comments": "An Omni host for NS installers"
+    }
+  }
+}

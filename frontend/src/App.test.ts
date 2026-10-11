@@ -2,11 +2,11 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/sv
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App.svelte";
-import { GetSnapshot, SetProfile } from "../wailsjs/go/main/DesktopApp";
-import { EventsOn } from "../wailsjs/runtime/runtime";
+import { GetSnapshot, SetProfile } from "../bindings/github.com/timonwong/nsp-carrier/desktopapp";
+import { Create, Events } from "@wailsio/runtime";
 import { localePreference } from "./i18n";
 
-vi.mock("../wailsjs/go/main/DesktopApp", () => ({
+vi.mock("../bindings/github.com/timonwong/nsp-carrier/desktopapp", () => ({
   ChooseFiles: vi.fn(),
   ChooseFolder: vi.fn(),
   ClearQueue: vi.fn(),
@@ -18,7 +18,10 @@ vi.mock("../wailsjs/go/main/DesktopApp", () => ({
   Start: vi.fn(),
   Stop: vi.fn(),
 }));
-vi.mock("../wailsjs/runtime/runtime", () => ({ EventsOff: vi.fn(), EventsOn: vi.fn() }));
+vi.mock("@wailsio/runtime", async (importOriginal) => {
+  const runtime = await importOriginal<typeof import("@wailsio/runtime")>();
+  return { ...runtime, Events: { ...runtime.Events, On: vi.fn() } };
+});
 
 const baseSnapshot = {
   state: "Idle",
@@ -97,11 +100,31 @@ describe("installer profile UI", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(GetSnapshot).mockResolvedValue(baseSnapshot as never);
-    vi.mocked(EventsOn).mockReset();
+    vi.mocked(Events.On).mockReset();
+    vi.mocked(Events.On).mockReturnValue(vi.fn());
     localStorage.clear();
     localePreference.set(undefined);
   });
   afterEach(() => cleanup());
+
+  it("accepts native file drops across the app surface", () => {
+    const { container } = render(App);
+    expect(container.querySelector("main.app-shell")?.hasAttribute("data-file-drop-target")).toBe(
+      true,
+    );
+  });
+
+  it("registers the typed snapshot converter and releases its event listener", async () => {
+    const unsubscribe = vi.fn();
+    vi.mocked(Events.On).mockReturnValue(unsubscribe);
+    const { unmount } = render(App);
+    await waitFor(() =>
+      expect(Events.On).toHaveBeenCalledWith("nsp-carrier:snapshot", expect.any(Function)),
+    );
+    expect(Create.Events["nsp-carrier:snapshot"]).toBeDefined();
+    unmount();
+    expect(unsubscribe).toHaveBeenCalledOnce();
+  });
 
   it("renders backend-provided profiles and capabilities without a frontend format matrix", async () => {
     render(App);
@@ -121,10 +144,12 @@ describe("installer profile UI", () => {
 
   it("disables profile mutation while busy", async () => {
     let sink: ((snapshot: unknown) => void) | undefined;
-    vi.mocked(EventsOn).mockImplementation((_event: string, callback: (...data: any[]) => void) => {
-      sink = (snapshot: unknown) => callback(snapshot);
-      return () => {};
-    });
+    vi.mocked(Events.On).mockImplementation(
+      (_event: string, callback: (...data: any[]) => void) => {
+        sink = (snapshot: unknown) => callback({ name: "nsp-carrier:snapshot", data: snapshot });
+        return () => {};
+      },
+    );
     render(App);
     const dbi = await screen.findByRole("button", { name: "Backend DBI" });
     const goldleaf = screen.getByRole("button", { name: "Backend Goldleaf" });
@@ -160,10 +185,12 @@ describe("installer profile UI", () => {
 
   it("separates session state from the current serving action", async () => {
     let sink: ((snapshot: unknown) => void) | undefined;
-    vi.mocked(EventsOn).mockImplementation((_event: string, callback: (...data: any[]) => void) => {
-      sink = (snapshot: unknown) => callback(snapshot);
-      return () => {};
-    });
+    vi.mocked(Events.On).mockImplementation(
+      (_event: string, callback: (...data: any[]) => void) => {
+        sink = (snapshot: unknown) => callback({ name: "nsp-carrier:snapshot", data: snapshot });
+        return () => {};
+      },
+    );
     render(App);
     await screen.findByRole("button", { name: "Backend Goldleaf" });
     sink?.({
@@ -202,10 +229,12 @@ describe("installer profile UI", () => {
 
   it("labels installer-driven file states clearly", async () => {
     let sink: ((snapshot: unknown) => void) | undefined;
-    vi.mocked(EventsOn).mockImplementation((_event: string, callback: (...data: any[]) => void) => {
-      sink = (snapshot: unknown) => callback(snapshot);
-      return () => {};
-    });
+    vi.mocked(Events.On).mockImplementation(
+      (_event: string, callback: (...data: any[]) => void) => {
+        sink = (snapshot: unknown) => callback({ name: "nsp-carrier:snapshot", data: snapshot });
+        return () => {};
+      },
+    );
     render(App);
     await screen.findByRole("button", { name: "Backend Goldleaf" });
     sink?.({

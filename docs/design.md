@@ -30,7 +30,7 @@ internal/transport  USB-independent stream boundary and fake transport
 internal/usb        gousb/libusb adapter
 internal/app        queue/session orchestration and frontend snapshots
 desktop_app.go      narrow Wails adapter for dialogs, events, and user intents
-frontend            Wails v2 + Svelte/TypeScript presentation
+frontend            Wails v3 + Svelte/TypeScript presentation
 ```
 
 The Go backend is the source of truth. The frontend sends intent-level commands
@@ -167,7 +167,7 @@ state into an installation claim.
 
 ## UI scope
 
-The Wails v2 UI provides file addition, recursive multi-folder addition, drag and drop, queue checkboxes,
+The Wails v3 UI provides file addition, recursive multi-folder addition, drag and drop, queue checkboxes,
 removal, clear, search, Start/Stop, connection and session state, unique-byte
 progress, structured logs, typed errors, and Light/Dark/Auto theme. The UI
 supports English and Simplified Chinese (`zh-CN`). It follows the
