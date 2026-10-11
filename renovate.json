@@ -1,6 +1,10 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"],
+  "extends": [
+    "config:recommended",
+    ":semanticCommitTypeAll(deps)",
+    ":semanticCommitScopeDisabled"
+  ],
   "enabledManagers": ["mise", "gomod", "npm", "github-actions"],
   "schedule": ["every weekend"],
   "rangeStrategy": "bump",
@@ -28,6 +32,10 @@
       "matchManagers": ["npm"],
       "matchDepNames": ["pnpm"],
       "matchDepTypes": ["packageManager"]
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "semanticCommitType": "ci"
     }
   ]
 }

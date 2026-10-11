@@ -116,9 +116,14 @@ Every push to `main` updates a release PR that bumps the version and
 `vX.Y.Z`, creates the GitHub Release, then builds and attaches the Windows and
 macOS zips with their checksums.
 
-- The version bump comes from Conventional Commits; the changelog and release
-  notes come from GitHub's generated notes, one line per merged PR, so merge
-  commits do not duplicate entries. Use Conventional Commit PR titles.
+- Use Conventional Commit PR titles; with squash merges the PR title becomes
+  the commit that release-please reads. Merge commits list both the merge and
+  the branch commits, so prefer squash.
+- Changelog notes group by type (Features, Bug Fixes, Dependencies). A
+  release PR is opened only when one of those types lands; `docs`, `ci`,
+  `chore`, `test`, `build`, `refactor`, and `style` stay out of the notes
+  and do not release on their own. Dependency updates need a `deps:` prefix
+  to appear under Dependencies; Renovate is configured for that prefix.
 - While the version is `0.x`, `feat` bumps the minor version and breaking
   changes do not jump to `1.0.0`.
 - Version strings live in `frontend/package.json`, `build/config.yml`, `build/darwin/Info*.plist` and `build/windows/`; lines
