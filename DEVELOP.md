@@ -6,21 +6,20 @@ source; end users do not need it.
 ## Build prerequisites
 
 On macOS, install the CGO dependencies, then the toolchain pinned in
-`mise.toml` (Go, Node.js, [pnpm](https://pnpm.io) and the Wails CLI):
+`mise.toml` (Go, Node.js, pnpm and the Wails CLI):
 
 ```sh
 brew install libusb pkgconf
 mise install
-make deps
-make ui-install
+mise run deps
+mise run ui:install
 ```
 
-Without [mise](https://mise.jdx.dev), install Go and Node.js yourself, run
-`make wails-install`, and activate the pinned pnpm with
-`corepack enable && corepack install --global pnpm@11.25.0` (Corepack cannot see
-`frontend/package.json` from the repository root).
+Without [mise](https://mise.jdx.dev), install the same tools yourself and use
+pnpm 11.25.0. The repository's `packageManager` field records the required
+pnpm version.
 
-`make check` runs the Go and frontend tests, race checks, fuzz smoke tests,
+`mise run check` runs the Go and frontend tests, race checks, fuzz smoke tests,
 static analysis, and local builds.
 
 ## Developer USB CLI
@@ -28,11 +27,11 @@ static analysis, and local builds.
 Build and run the retained diagnostics CLI with local content paths:
 
 ```sh
-make build
-make usb-spike ARGS='--profile=dbi --timeout=30m --verbose -- /path/to/file.nsp /path/to/folder'
-make usb-spike ARGS='--profile=awoo --timeout=30m --verbose -- /path/to/file.nsp'
-make usb-spike ARGS='--profile=goldleaf --timeout=30m --verbose -- /path/to/file.nsp'
-make usb-spike ARGS='--profile=sphaira --timeout=30m --verbose -- /path/to/file.nsp'
+mise run cli:build
+mise run usb-spike -- --profile=dbi --timeout=30m --verbose -- /path/to/file.nsp /path/to/folder
+mise run usb-spike -- --profile=awoo --timeout=30m --verbose -- /path/to/file.nsp
+mise run usb-spike -- --profile=goldleaf --timeout=30m --verbose -- /path/to/file.nsp
+mise run usb-spike -- --profile=sphaira --timeout=30m --verbose -- /path/to/file.nsp
 ```
 
 For bounded Awoo, Goldleaf, or Sphaira command metadata, add
@@ -41,7 +40,7 @@ truncation. Records contain command, direction, result, source ID, range
 metadata, and integrity verdicts only; they never contain local paths, wire
 names, raw packets, payloads, or checksum values.
 
-`make gate0-probe` is DBI-specific: it builds before waiting, claims the
+`mise run gate0-probe` is DBI-specific: it builds before waiting, claims the
 discovered bulk endpoints, and exits without serving file content. Once it is
 ready, open `Install title from DBIbackend` on the Switch. Use the ordinary
 `--profile=awoo` flow for [Awoo evidence](docs/awoo-gate.md), or
@@ -60,18 +59,19 @@ gate; each profile's acceptance document remains independently authoritative.
 
 ## Desktop app
 
-Install the pinned Wails v3 CLI and verify the local macOS toolchain:
+Use the pinned Wails v3 CLI managed by mise and verify the local macOS
+toolchain:
 
 ```sh
-make wails-install
-make wails-doctor
+mise run wails:doctor
 ```
 
 Run or build the app:
 
 ```sh
-make app-dev
-make app-build
+mise run app:dev
+mise run app:build
+mise run app:package
 ```
 
 The bundle is written to `bin/NSP Carrier.app`. The local bundle is
