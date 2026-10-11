@@ -7,7 +7,7 @@ info:
   description: An Omni host for NS installers
   copyright: Copyright 2026 Theo
   comments: An Omni host for NS installers
-  version: 0.3.0
+  version: 0.3.0 # x-release-please-version
 
 dev_mode:
   root_path: .
